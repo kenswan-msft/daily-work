@@ -9,4 +9,6 @@
     <File Path="NuGet.config" />
     <File Path="README.md" />
   </Folder>
+  <Project Path="src/DailyWork.AppHost/DailyWork.AppHost.csproj" />
+  <Project Path="src/DailyWork.ServiceDefaults/DailyWork.ServiceDefaults.csproj" />
 </Solution>
