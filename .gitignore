@@ -11,6 +11,12 @@
 *.sln.docstates
 *.env
 
+# User Env Files
+.idea/
+
+# Desktop Service Store files
+.DS_Store
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

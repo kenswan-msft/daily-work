@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/SolutionItems/">
+    <File Path=".editorconfig" />
+    <File Path=".github\copilot-instructions.md" />
+    <File Path=".gitignore" />
+    <File Path="DailyWork.slnx" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="NuGet.config" />
+    <File Path="README.md" />
+  </Folder>
+</Solution>
