@@ -4,7 +4,7 @@ using Microsoft.Extensions.AI;
 
 namespace DailyWork.Api.Agents;
 
-public sealed class ChatAgent(IChatClient chatClient) : IAgentFactory
+public sealed class ChatAgent(IChatClient chatClient, CosmosChatMessageStore chatHistoryProvider) : IAgentFactory
 {
     public static string AgentName => "chat";
 
@@ -18,7 +18,14 @@ public sealed class ChatAgent(IChatClient chatClient) : IAgentFactory
 
     public AIAgent Create() =>
         chatClient.AsAIAgent(
-            name: AgentName,
-            description: AgentDescription,
-            instructions: Instructions);
+            options: new ChatClientAgentOptions
+            {
+                Name = AgentName,
+                Description = AgentDescription,
+                ChatOptions = new ChatOptions
+                {
+                    Instructions = Instructions
+                },
+                ChatHistoryProvider = chatHistoryProvider
+            });
 }

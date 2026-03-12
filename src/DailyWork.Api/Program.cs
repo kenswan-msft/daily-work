@@ -6,11 +6,13 @@ using Microsoft.Agents.AI.Hosting.AGUI.AspNetCore;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddAzureCosmosClient("conversations-db");
 
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddAGUI();
 builder.Services.AddAgenticChatClient();
+builder.Services.AddCosmosChatHistoryProvider();
 
 builder.Services.AddAgentFactory<ChatAgent>();
 
