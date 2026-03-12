@@ -46,7 +46,7 @@ dotnet test DailyWork.slnx
 dotnet test --filter "FullyQualifiedName~Namespace.TestClass.TestMethod"
 
 # Run tests in a specific project
-dotnet test src/DailyWork.Tests/DailyWork.Tests.csproj
+dotnet test test/DailyWork.Api.Test/DailyWork.Api.Test.csproj
 ```
 
 ## Conventions
@@ -54,7 +54,8 @@ dotnet test src/DailyWork.Tests/DailyWork.Tests.csproj
 ### Project Structure
 
 - Solution uses `.slnx` format with a `/SolutionItems/` folder for root config files.
-- All projects live under `src/`. Project naming follows `DailyWork.{Component}` (e.g., `DailyWork.Api`, `DailyWork.Web`).
+- Source projects live under `src/`. Test projects live under `test/`. Project naming follows `DailyWork.{Component}` (e.g., `DailyWork.Api`, `DailyWork.Web`).
+- Test projects follow `DailyWork.{Component}.Test` naming (e.g., `DailyWork.Api.Test`).
 - MCP server projects follow `DailyWork.Mcp.{ToolName}` naming.
 
 ### .NET Conventions

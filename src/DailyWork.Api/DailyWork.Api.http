@@ -1,0 +1,6 @@
+@DailyWorkApi_HostAddress = https://localhost:7048
+
+GET {{DailyWorkApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

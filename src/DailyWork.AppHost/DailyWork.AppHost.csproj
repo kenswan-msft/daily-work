@@ -6,4 +6,8 @@
     <UserSecretsId>774dd1c1-1d2e-463f-9d8c-8d232657002d</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DailyWork.Api\DailyWork.Api.csproj" />
+  </ItemGroup>
+
 </Project>
