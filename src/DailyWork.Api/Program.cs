@@ -1,8 +1,18 @@
+using DailyWork.Agents;
+using DailyWork.Api.Agents;
+using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Hosting.AGUI.AspNetCore;
+
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
 builder.Services.AddOpenApi();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddAGUI();
+builder.Services.AddAgenticChatClient();
+
+builder.Services.AddAgentFactory<ChatAgent>();
 
 WebApplication app = builder.Build();
 
@@ -13,28 +23,12 @@ if (app.Environment.IsDevelopment())
 
 app.MapDefaultEndpoints();
 
-string[] summaries =
-[
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-];
+IServiceScope scope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope();
 
-app.MapGet("/weatherforecast", () =>
-{
-    WeatherForecast[] forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapAGUI(
+    "/api/chat",
+    new AGUIAgentProxy(
+        innerAgent: scope.ServiceProvider.GetRequiredKeyedService<AIAgent>(ChatAgent.AgentName),
+        httpContextAccessor: app.Services.GetRequiredService<IHttpContextAccessor>()));
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
