@@ -1,3 +1,5 @@
+using DailyWork.Agents.Clients;
+using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI.Hosting;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,7 +55,8 @@ public static class ServiceCollectionExtensions
             return services;
         }
 
-        public IHostedAgentBuilder AddAgentFactory<TFactory>()
+        public IHostedAgentBuilder AddAgentFactory<TFactory>(
+            ServiceLifetime lifetime = ServiceLifetime.Singleton)
             where TFactory : class, IAgentFactory
         {
             services.AddSingleton<TFactory>();
@@ -61,6 +64,20 @@ public static class ServiceCollectionExtensions
             return services.AddAIAgent(
                 TFactory.AgentName,
                 (sp, _) => sp.GetRequiredService<TFactory>().Create());
+        }
+
+        public IServiceCollection AddRequestScopedAGUIAgent()
+        {
+            services.AddKeyedSingleton<RequestScopedAGUIAgent>(KeyedService.AnyKey, (sp, key) =>
+            {
+                IServiceScopeFactory scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+                return new RequestScopedAGUIAgent(
+                    key?.ToString() ?? string.Empty,
+                    scopeFactory);
+            });
+
+            return services;
         }
     }
 }

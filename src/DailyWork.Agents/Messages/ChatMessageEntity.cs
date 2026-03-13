@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DailyWork.Agents;
+namespace DailyWork.Agents.Messages;
 
 /// <summary>
 /// Represents a chat message persisted in Cosmos DB.

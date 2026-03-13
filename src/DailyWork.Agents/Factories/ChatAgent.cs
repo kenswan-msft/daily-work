@@ -1,8 +1,8 @@
-using DailyWork.Agents;
+using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
-namespace DailyWork.Api.Agents;
+namespace DailyWork.Agents.Factories;
 
 public sealed class ChatAgent(IChatClient chatClient, CosmosChatMessageStore chatHistoryProvider) : IAgentFactory
 {

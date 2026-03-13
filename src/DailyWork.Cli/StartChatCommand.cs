@@ -47,12 +47,14 @@ public class StartChatCommand : IAutomationCommandInitializer
             apiOptions.ChatEndpoint,
             loggerFactory);
 
+        string conversationId = Guid.NewGuid().ToString();
+
         ChatClientAgent agent = aguiClient.AsAIAgent(
             name: "DailyWork Chat",
             description: "Chat with the DailyWork assistant via AGUI");
 
         AgentSession session =
-            await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
+            await agent.CreateSessionAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
         List<ChatMessage> messages = [];
 

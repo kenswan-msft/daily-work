@@ -3,7 +3,7 @@ using Microsoft.Extensions.AI;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-namespace DailyWork.Agents;
+namespace DailyWork.Agents.Clients;
 
 public class CopilotChatClient(
     CopilotClient copilotClient,

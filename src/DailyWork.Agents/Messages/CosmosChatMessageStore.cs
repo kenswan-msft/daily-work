@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DailyWork.Agents;
+namespace DailyWork.Agents.Messages;
 
 public class CosmosChatMessageStore(
     CosmosClient cosmosClient,
@@ -13,10 +13,30 @@ public class CosmosChatMessageStore(
     string containerId,
     ILogger<CosmosChatMessageStore> logger) : ChatHistoryProvider
 {
+    /// <summary>
+    /// The key used to store/retrieve the conversation ID in <see cref="AgentSession.StateBag"/>.
+    /// </summary>
+    public const string ConversationIdStateBagKey = "cosmos_conversation_id";
+
     private Container MessageContainer => cosmosClient.GetContainer(databaseId, containerId);
 
-    private static string? ResolveConversationId(AgentSession session) =>
-        session is ChatClientAgentSession chatSession ? chatSession.ConversationId : null;
+    private static string? ResolveConversationId(AgentSession? session)
+    {
+        if (session is null)
+        {
+            return null;
+        }
+
+        // Prefer the StateBag conversation ID (set by callers for custom scenarios)
+        if (session.StateBag.TryGetValue<string>(ConversationIdStateBagKey, out string? stateBagId)
+            && !string.IsNullOrEmpty(stateBagId))
+        {
+            return stateBagId;
+        }
+
+        // Fall back to ChatClientAgentSession.ConversationId for server-managed history scenarios
+        return session is ChatClientAgentSession chatSession ? chatSession.ConversationId : null;
+    }
 
     protected override async ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(
         InvokingContext context,

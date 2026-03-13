@@ -3,7 +3,7 @@ using Microsoft.Extensions.AI;
 using OpenAI;
 using System.ClientModel;
 
-namespace DailyWork.Agents;
+namespace DailyWork.Agents.Clients;
 
 public class ChatClientFactory
 {
