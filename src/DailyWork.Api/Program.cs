@@ -32,3 +32,5 @@ app.MapDefaultEndpoints();
 app.MapAGUI("/api/chat", app.Services.GetRequiredKeyedService<RequestScopedAGUIAgent>(ChatAgent.AgentName));
 
 app.Run();
+
+public partial class Program;

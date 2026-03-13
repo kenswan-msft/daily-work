@@ -91,6 +91,16 @@ dotnet test test/DailyWork.Api.Test/DailyWork.Api.Test.csproj
 - Allman-style braces (opening brace on new line).
 - `system` usings are NOT sorted first (`dotnet_sort_system_directives_first = false`).
 
+### Testing
+
+- For bug fixes, write a failing test that reproduces the issue before implementing the fix.
+- Every code change should include corresponding test additions or updates. New features need tests; refactors should verify existing tests still pass and update them if behavior changes.
+- **Testing stack**: xUnit v3, NSubstitute for mocking, `WebApplicationFactory<Program>` for API functional tests, and coverlet for coverage.
+- Test projects live under `test/` with naming `DailyWork.{Component}.Test`; mirror the source folder structure where appropriate.
+- Use the `MethodName_Scenario_ExpectedResult` naming convention (for example, `CreateChatClient_UnsupportedSource_ThrowsNotSupportedException`).
+- For API coverage, prefer functional tests with `WebApplicationFactory` that exercise the full HTTP pipeline with mocked infrastructure rather than testing individual classes in isolation.
+- Use xUnit built-in assertions such as `Assert.Equal`, `Assert.NotNull`, and `Assert.Throws`.
+
 ## MCP Servers
 
 The application uses custom MCP servers (`DailyWork.Mcp.*`) to expose domain-specific tools to AI agents. Additionally, the following external MCP servers are integrated via the Aspire AppHost:
