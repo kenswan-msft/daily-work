@@ -1,13 +1,14 @@
 using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DailyWork.Agents.Factories;
 
 public sealed class ChatAgent(
     IChatClient chatClient,
     CosmosChatMessageStore chatHistoryProvider,
-    IList<AITool> mcpTools) : IAgentFactory
+    [FromKeyedServices("goals")] AITool goalsAgentTool) : IAgentFactory
 {
     public static string AgentName => "chat";
 
@@ -18,18 +19,10 @@ public sealed class ChatAgent(
         Provide clear, concise, and accurate answers to questions.
         When appropriate, include code examples or step-by-step guidance.
 
-        You also have access to goals and todo tracking tools. Use them to help the user manage their work:
-
-        - When the user asks to create goals or todos, use the appropriate create tools.
-          Suggest tags and priorities if the user doesn't specify them.
-        - When the user asks "What should I focus on today?" or similar, use get_daily_focus
-          to get prioritized items and present them in a clear, actionable format.
-        - When creating a goal, offer to break it down into actionable todo items.
-        - When updating status, confirm the change and show updated progress if the item belongs to a goal.
-        - When listing items, present them in a clean, organized format with status indicators.
-        - Proactively suggest linking standalone todos to relevant goals when patterns emerge.
-        - When a user completes all todos under a goal, suggest updating the goal status to Completed.
-        - Use tags to help organize and filter items (e.g., #work, #personal, #learning, #urgent).
+        You have a goals assistant available as a tool. Delegate to it for any requests
+        related to goals, todo items, tags, daily focus, or work tracking. The goals
+        assistant is a domain expert that can create, update, list, and manage goals and
+        todos on the user's behalf.
         """;
 
     public AIAgent Create() =>
@@ -41,7 +34,7 @@ public sealed class ChatAgent(
                 ChatOptions = new ChatOptions
                 {
                     Instructions = Instructions,
-                    Tools = [.. mcpTools]
+                    Tools = [goalsAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
             });

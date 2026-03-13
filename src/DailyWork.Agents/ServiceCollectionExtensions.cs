@@ -1,9 +1,12 @@
 using DailyWork.Agents.Clients;
 using DailyWork.Agents.Conversations;
+using DailyWork.Agents.Factories;
 using DailyWork.Agents.Messages;
+using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -146,53 +149,53 @@ public static class ServiceCollectionExtensions
         }
 
         /// <summary>
-        /// Registers an MCP client as a keyed singleton. When running under Aspire,
-        /// resolves the actual http(s) endpoint from service binding environment variables
-        /// since <see cref="HttpClientTransport"/> requires a standard HTTP or HTTPS scheme.
+        /// Registers MCP clients from the <c>McpClients</c> configuration section.
+        /// Each entry produces a keyed <see cref="McpClient"/> singleton. The endpoint
+        /// is resolved using the following fallback chain:
+        /// <list type="number">
+        ///   <item>Aspire service binding: <c>services:{key}:https:0</c> or <c>services:{key}:http:0</c></item>
+        ///   <item>Explicit <see cref="McpServerConnectionOptions.Endpoint"/> from configuration</item>
+        /// </list>
         /// </summary>
-        public IServiceCollection AddMcpClient(
-            string key,
-            string? name = null)
+        public IServiceCollection AddMcpClients(IConfiguration configuration)
         {
-            services.AddKeyedSingleton<McpClient>(
-                key,
-                (serviceProvider, _) =>
+            List<McpServerConnectionOptions> clients = configuration
+                .GetSection("McpClients")
+                .Get<List<McpServerConnectionOptions>>() ?? [];
+
+            foreach (McpServerConnectionOptions options in clients)
+            {
+                if (string.IsNullOrWhiteSpace(options.Key))
                 {
-                    IHttpClientFactory httpClientFactory =
-                        serviceProvider.GetRequiredService<IHttpClientFactory>();
+                    throw new InvalidOperationException(
+                        "Each McpClients entry must have a non-empty 'Key'.");
+                }
 
-                    // Aspire injects service endpoints as environment variables:
-                    //   services__{name}__https__0 = https://localhost:PORT
-                    //   services__{name}__http__0  = http://localhost:PORT
-                    string? endpointUrl =
-                        Environment.GetEnvironmentVariable($"services__{key}__https__0") ??
-                        Environment.GetEnvironmentVariable($"services__{key}__http__0");
-
-                    if (endpointUrl is null)
+                services.AddKeyedSingleton<McpClient>(
+                    options.Key,
+                    (serviceProvider, _) =>
                     {
-                        throw new InvalidOperationException(
-                            $"Cannot resolve MCP endpoint for '{key}'. " +
-                            $"Expected environment variable 'services__{key}__https__0' or " +
-                            $"'services__{key}__http__0' to be set by Aspire.");
-                    }
+                        IHttpClientFactory httpClientFactory =
+                            serviceProvider.GetRequiredService<IHttpClientFactory>();
 
-                    var endpoint = new Uri(endpointUrl);
+                        string endpointUrl = ResolveEndpoint(options.Key, options.Endpoint, configuration);
 
-                    var transport = new HttpClientTransport(
-                        new HttpClientTransportOptions
-                        {
-                            Endpoint = endpoint,
-                            Name = name
-                        },
-                        httpClientFactory.CreateClient());
+                        var transport = new HttpClientTransport(
+                            new HttpClientTransportOptions
+                            {
+                                Endpoint = new Uri(endpointUrl),
+                                Name = options.Name
+                            },
+                            httpClientFactory.CreateClient());
 
-                    McpClient mcpClient = McpClient
-                        .CreateAsync(transport)
-                        .GetAwaiter()
-                        .GetResult();
+                        McpClient mcpClient = McpClient
+                            .CreateAsync(transport)
+                            .GetAwaiter()
+                            .GetResult();
 
-                    return mcpClient;
-                });
+                        return mcpClient;
+                    });
+            }
 
             return services;
         }
@@ -211,5 +214,59 @@ public static class ServiceCollectionExtensions
 
             return services;
         }
+
+        /// <summary>
+        /// Registers a <see cref="GoalsAgent"/> and exposes it as a keyed
+        /// <see cref="AITool"/> so that <see cref="ChatAgent"/> can delegate to it.
+        /// </summary>
+        public IServiceCollection AddGoalsAgent()
+        {
+            services.AddSingleton<GoalsAgent>();
+
+            services.AddKeyedSingleton<AITool>(
+                GoalsAgent.AgentName,
+                (sp, _) =>
+                {
+                    GoalsAgent factory = sp.GetRequiredService<GoalsAgent>();
+                    AIAgent agent = factory.Create();
+
+                    return agent.AsAIFunction(new AIFunctionFactoryOptions
+                    {
+                        Name = GoalsAgent.AgentName,
+                        Description = GoalsAgent.AgentDescription
+                    });
+                });
+
+            return services;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the MCP endpoint URL using the Aspire service binding configuration
+    /// with a fallback to an explicit endpoint value.
+    /// </summary>
+    private static string ResolveEndpoint(
+        string key,
+        string? explicitEndpoint,
+        IConfiguration configuration)
+    {
+        // Aspire injects service bindings into IConfiguration as:
+        //   services:{name}:https:0 = https://localhost:PORT
+        string? aspireEndpoint = configuration[$"services:{key}:https:0"];
+
+        if (aspireEndpoint is not null)
+        {
+            return aspireEndpoint;
+        }
+
+        if (!string.IsNullOrWhiteSpace(explicitEndpoint))
+        {
+            return explicitEndpoint;
+        }
+
+        throw new InvalidOperationException(
+            $"Cannot resolve MCP endpoint for '{key}'. " +
+            $"Set the endpoint via Aspire service bindings or " +
+            $"the 'Endpoint' property in the McpClients configuration section.");
     }
 }
