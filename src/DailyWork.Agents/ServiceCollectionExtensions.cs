@@ -202,15 +202,17 @@ public static class ServiceCollectionExtensions
 
         public IServiceCollection AddMcpTools(string mcpClientKey)
         {
-            services.AddSingleton<IList<AITool>>(sp =>
-            {
-                McpClient mcpClient = sp.GetRequiredKeyedService<McpClient>(mcpClientKey);
-                IList<McpClientTool> tools = mcpClient.ListToolsAsync()
-                    .AsTask()
-                    .GetAwaiter()
-                    .GetResult();
-                return tools.Cast<AITool>().ToList();
-            });
+            services.AddKeyedSingleton<IList<AITool>>(
+                mcpClientKey,
+                (sp, _) =>
+                {
+                    McpClient mcpClient = sp.GetRequiredKeyedService<McpClient>(mcpClientKey);
+                    IList<McpClientTool> tools = mcpClient.ListToolsAsync()
+                        .AsTask()
+                        .GetAwaiter()
+                        .GetResult();
+                    return tools.Cast<AITool>().ToList();
+                });
 
             return services;
         }
