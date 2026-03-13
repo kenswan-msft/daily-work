@@ -21,6 +21,10 @@ builder.Services
     .AddConversationService()
     .AddCosmosChatHistoryProvider()
     .AddRequestScopedAGUIAgent()
+    .AddMcpClient(
+        key: "goals-mcp",
+        name: "Goals & Todos MCP")
+    .AddMcpTools("goals-mcp")
     .AddAgentFactory<ChatAgent>();
 
 WebApplication app = builder.Build();

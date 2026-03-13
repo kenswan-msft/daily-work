@@ -7,6 +7,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ModelContextProtocol.Client;
 
 namespace DailyWork.Agents;
 
@@ -139,6 +140,73 @@ public static class ServiceCollectionExtensions
                 return new RequestScopedAGUIAgent(
                     key?.ToString() ?? string.Empty,
                     scopeFactory);
+            });
+
+            return services;
+        }
+
+        /// <summary>
+        /// Registers an MCP client as a keyed singleton. When running under Aspire,
+        /// resolves the actual http(s) endpoint from service binding environment variables
+        /// since <see cref="HttpClientTransport"/> requires a standard HTTP or HTTPS scheme.
+        /// </summary>
+        public IServiceCollection AddMcpClient(
+            string key,
+            string? name = null)
+        {
+            services.AddKeyedSingleton<McpClient>(
+                key,
+                (serviceProvider, _) =>
+                {
+                    IHttpClientFactory httpClientFactory =
+                        serviceProvider.GetRequiredService<IHttpClientFactory>();
+
+                    // Aspire injects service endpoints as environment variables:
+                    //   services__{name}__https__0 = https://localhost:PORT
+                    //   services__{name}__http__0  = http://localhost:PORT
+                    string? endpointUrl =
+                        Environment.GetEnvironmentVariable($"services__{key}__https__0") ??
+                        Environment.GetEnvironmentVariable($"services__{key}__http__0");
+
+                    if (endpointUrl is null)
+                    {
+                        throw new InvalidOperationException(
+                            $"Cannot resolve MCP endpoint for '{key}'. " +
+                            $"Expected environment variable 'services__{key}__https__0' or " +
+                            $"'services__{key}__http__0' to be set by Aspire.");
+                    }
+
+                    var endpoint = new Uri(endpointUrl);
+
+                    var transport = new HttpClientTransport(
+                        new HttpClientTransportOptions
+                        {
+                            Endpoint = endpoint,
+                            Name = name
+                        },
+                        httpClientFactory.CreateClient());
+
+                    McpClient mcpClient = McpClient
+                        .CreateAsync(transport)
+                        .GetAwaiter()
+                        .GetResult();
+
+                    return mcpClient;
+                });
+
+            return services;
+        }
+
+        public IServiceCollection AddMcpTools(string mcpClientKey)
+        {
+            services.AddSingleton<IList<AITool>>(sp =>
+            {
+                McpClient mcpClient = sp.GetRequiredKeyedService<McpClient>(mcpClientKey);
+                IList<McpClientTool> tools = mcpClient.ListToolsAsync()
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+                return tools.Cast<AITool>().ToList();
             });
 
             return services;

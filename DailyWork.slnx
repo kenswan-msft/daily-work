@@ -14,7 +14,9 @@
   <Project Path="src/DailyWork.Api/DailyWork.Api.csproj" />
   <Project Path="src/DailyWork.AppHost/DailyWork.AppHost.csproj" />
   <Project Path="src/DailyWork.Cli/DailyWork.Cli.csproj" />
+  <Project Path="src/DailyWork.Mcp.Goals/DailyWork.Mcp.Goals.csproj" />
   <Project Path="src/DailyWork.ServiceDefaults/DailyWork.ServiceDefaults.csproj" />
   <Project Path="test/DailyWork.Agents.Test/DailyWork.Agents.Test.csproj" />
   <Project Path="test/DailyWork.Cli.Test/DailyWork.Cli.Test.csproj" />
+  <Project Path="test/DailyWork.Mcp.Goals.Test/DailyWork.Mcp.Goals.Test.csproj" />
 </Solution>

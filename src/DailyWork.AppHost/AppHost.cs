@@ -23,10 +23,34 @@ IResourceBuilder<AzureCosmosDBContainerResource> agentConversationContainer =
 IResourceBuilder<AzureCosmosDBContainerResource> conversationMetadataContainer =
     cosmosDatabase.AddContainer("conversation-metadata", "/id");
 
+IResourceBuilder<ParameterResource> sqlPassword =
+    builder.AddParameter(
+        "sql-password",
+        value: new GenerateParameterDefault
+        {
+            MinLength = 64,
+            Special = false
+        },
+        secret: true,
+        persist: true);
+
+IResourceBuilder<SqlServerDatabaseResource> goalsDb =
+    builder.AddSqlServer("dailywork-sql-server", password: sqlPassword)
+        .WithLifetime(ContainerLifetime.Persistent)
+        .WithDataVolume()
+        .AddDatabase("goals-db");
+
+IResourceBuilder<ProjectResource> goalsMcp =
+    builder.AddProject<Projects.DailyWork_Mcp_Goals>("goals-mcp")
+        .WithReference(goalsDb)
+        .WaitFor(goalsDb);
+
 builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
+    .WithReference(goalsMcp)
     .WithReference(cosmosDatabase)
     .WithReference(agentConversationContainer)
     .WithReference(conversationMetadataContainer)
-    .WaitFor(cosmosDatabase);
+    .WaitFor(cosmosDatabase)
+    .WaitFor(goalsMcp);
 
 builder.Build().Run();

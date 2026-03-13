@@ -29,7 +29,8 @@ public class ChatAgentTests
             chatClient, Substitute.For<ILogger<ConversationTitleGenerator>>());
         var chatHistoryProvider = new CosmosChatMessageStore(
             cosmosClient, "database", "container", logger, conversationService, titleGenerator);
-        var sut = new ChatAgent(chatClient, chatHistoryProvider);
+        IList<AITool> mcpTools = [];
+        var sut = new ChatAgent(chatClient, chatHistoryProvider, mcpTools);
 
         AIAgent agent = sut.Create();
 

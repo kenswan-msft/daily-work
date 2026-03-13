@@ -8,10 +8,12 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Azure.CosmosDB" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DailyWork.Api\DailyWork.Api.csproj" />
+    <ProjectReference Include="..\DailyWork.Mcp.Goals\DailyWork.Mcp.Goals.csproj" />
   </ItemGroup>
 
 </Project>
