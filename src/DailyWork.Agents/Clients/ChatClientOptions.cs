@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DailyWork.Agents;
+namespace DailyWork.Agents.Clients;
 
 public class ChatClientOptions
 {

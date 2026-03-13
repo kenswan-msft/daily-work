@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Azure.CosmosDB" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\DailyWork.Api\DailyWork.Api.csproj" />
   </ItemGroup>
 
