@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using DailyWork.Agents.Conversations;
 using DailyWork.Agents.Factories;
 using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Hosting;
@@ -12,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DailyWork.Api.Test;
@@ -20,6 +22,7 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<Program>
 {
     private const string DatabaseNameVariable = "AGENT_CONVERSATIONS_DATABASENAME";
     private const string ContainerNameVariable = "AGENT_CONVERSATIONS_CONTAINERNAME";
+    private const string MetadataContainerNameVariable = "CONVERSATION_METADATA_CONTAINERNAME";
     private const string CosmosConnectionString = "AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+E0N8A7Cgv30VRDJIWEHLM+E==;";
     private static readonly JsonElement EmptyJson = JsonDocument.Parse("{}").RootElement.Clone();
     private readonly StubAgent stubAgent = new();
@@ -28,12 +31,42 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<Program>
     {
         Environment.SetEnvironmentVariable(DatabaseNameVariable, "test-conversations-db");
         Environment.SetEnvironmentVariable(ContainerNameVariable, "test-conversations");
+        Environment.SetEnvironmentVariable(MetadataContainerNameVariable, "test-conversation-metadata");
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", Environments.Development);
+
+        ConversationServiceSubstitute = Substitute.For<ConversationService>(
+            CosmosClientSubstitute,
+            "test-conversations-db",
+            "test-conversation-metadata",
+            "test-conversations",
+            Substitute.For<ILogger<ConversationService>>());
+
+        ConversationServiceSubstitute
+            .GetConversationsAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<ConversationMetadataEntity>>([]));
+
+        ConversationServiceSubstitute
+            .GetConversationMessagesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<ConversationMessageSummary>>([]));
+
+        ConversationServiceSubstitute
+            .CreateOrUpdateMetadataAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        ConversationServiceSubstitute
+            .UpdateTitleAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
     }
 
     public CosmosClient CosmosClientSubstitute { get; } = Substitute.For<CosmosClient>();
 
     public IChatClient ChatClientSubstitute { get; } = Substitute.For<IChatClient>();
+
+    public ConversationService ConversationServiceSubstitute { get; }
 
     public string StubResponseText
     {
@@ -58,6 +91,15 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IChatClient>();
             services.AddSingleton(ChatClientSubstitute);
+
+            services.RemoveAll<ConversationTitleGenerator>();
+            services.AddSingleton(sp =>
+                new ConversationTitleGenerator(
+                    sp.GetRequiredService<IChatClient>(),
+                    sp.GetRequiredService<ILogger<ConversationTitleGenerator>>()));
+
+            services.RemoveAll<ConversationService>();
+            services.AddSingleton(ConversationServiceSubstitute);
 
             RemoveKeyedServices<AIAgent>(services, ChatAgent.AgentName);
             services.AddKeyedSingleton<AIAgent>(ChatAgent.AgentName, (_, _) => stubAgent);

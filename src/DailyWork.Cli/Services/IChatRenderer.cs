@@ -11,7 +11,11 @@ public interface IChatRenderer
     void RenderCancelled();
     void RenderError(string message);
     void RenderResponseDivider();
+    void RenderSlashCommandUnknown(string command);
+    void RenderConversationHistory(IReadOnlyList<ConversationMessage> messages);
+    void RenderConversationResumed(string title);
     void RenderToolCalls(IReadOnlyList<string> toolCallOutputs);
+    ConversationSummary? PromptConversationSelection(IReadOnlyList<ConversationSummary> conversations);
     Task<ChatResponseResult> RenderStreamingResponseAsync(
         IAsyncEnumerable<AgentResponseUpdate> responseStream,
         CancellationToken cancellationToken);

@@ -1,3 +1,4 @@
+using DailyWork.Agents.Conversations;
 using Microsoft.Agents.AI;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.AI;
@@ -11,7 +12,9 @@ public class CosmosChatMessageStore(
     CosmosClient cosmosClient,
     string databaseId,
     string containerId,
-    ILogger<CosmosChatMessageStore> logger) : ChatHistoryProvider
+    ILogger<CosmosChatMessageStore> logger,
+    ConversationService conversationService,
+    ConversationTitleGenerator titleGenerator) : ChatHistoryProvider
 {
     /// <summary>
     /// The key used to store/retrieve the conversation ID in <see cref="AgentSession.StateBag"/>.
@@ -156,6 +159,82 @@ public class CosmosChatMessageStore(
             "Saved {Count} messages for conversation {ConversationId}",
             allNewMessages.Count,
             conversationId);
+
+        // Update conversation metadata (fire-and-forget for title generation)
+        _ = UpdateConversationMetadataAsync(conversationId, allNewMessages, existingMessageIds);
+    }
+
+    private async Task UpdateConversationMetadataAsync(
+        string conversationId,
+        List<ChatMessage> newMessages,
+        HashSet<string> existingMessageIds)
+    {
+        try
+        {
+            int storedCount = newMessages
+                .Count(m => string.IsNullOrWhiteSpace(m.MessageId) || !existingMessageIds.Contains(m.MessageId));
+
+            bool isFirstExchange = existingMessageIds.Count == 0;
+
+            if (isFirstExchange)
+            {
+                string? firstUserMessage = newMessages
+                    .FirstOrDefault(m => m.Role == ChatRole.User)?.Text;
+                string? firstAssistantResponse = newMessages
+                    .FirstOrDefault(m => m.Role == ChatRole.Assistant)?.Text;
+
+                string title = ConversationTitleGenerator.Truncate(
+                    firstUserMessage ?? "New conversation", 60);
+
+                await conversationService.CreateOrUpdateMetadataAsync(
+                        conversationId, title, storedCount)
+                    .ConfigureAwait(false);
+
+                // Generate AI title in background if we have both sides of the exchange
+                if (!string.IsNullOrWhiteSpace(firstUserMessage)
+                    && !string.IsNullOrWhiteSpace(firstAssistantResponse))
+                {
+                    _ = GenerateAndUpdateTitleAsync(
+                        conversationId, firstUserMessage, firstAssistantResponse);
+                }
+            }
+            else
+            {
+                await conversationService.CreateOrUpdateMetadataAsync(
+                        conversationId, string.Empty, storedCount)
+                    .ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to update conversation metadata for {ConversationId}",
+                conversationId);
+        }
+    }
+
+    private async Task GenerateAndUpdateTitleAsync(
+        string conversationId,
+        string firstUserMessage,
+        string firstAssistantResponse)
+    {
+        try
+        {
+            string aiTitle = await titleGenerator.GenerateTitleAsync(
+                    firstUserMessage, firstAssistantResponse)
+                .ConfigureAwait(false);
+
+            await conversationService.UpdateTitleAsync(conversationId, aiTitle)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to generate AI title for conversation {ConversationId}",
+                conversationId);
+        }
     }
 
     private async Task<HashSet<string>> GetExistingMessageIdsAsync(

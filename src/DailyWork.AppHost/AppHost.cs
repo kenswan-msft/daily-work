@@ -20,9 +20,13 @@ IResourceBuilder<AzureCosmosDBDatabaseResource> cosmosDatabase =
 IResourceBuilder<AzureCosmosDBContainerResource> agentConversationContainer =
     cosmosDatabase.AddContainer("agent-conversations", "/conversationId");
 
+IResourceBuilder<AzureCosmosDBContainerResource> conversationMetadataContainer =
+    cosmosDatabase.AddContainer("conversation-metadata", "/id");
+
 builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WithReference(cosmosDatabase)
     .WithReference(agentConversationContainer)
+    .WithReference(conversationMetadataContainer)
     .WaitFor(cosmosDatabase);
 
 builder.Build().Run();

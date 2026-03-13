@@ -1,3 +1,4 @@
+using DailyWork.Agents.Conversations;
 using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
 using Microsoft.Azure.Cosmos;
@@ -199,8 +200,14 @@ public class CosmosChatMessageStoreTests
         container ??= Substitute.For<Container>();
         cosmosClient.GetContainer(DatabaseId, ContainerId).Returns(container);
         ILogger<CosmosChatMessageStore> logger = Substitute.For<ILogger<CosmosChatMessageStore>>();
+        IChatClient chatClient = Substitute.For<IChatClient>();
+        ConversationService conversationService = Substitute.For<ConversationService>(
+            cosmosClient, "db", "meta", "msg", Substitute.For<ILogger<ConversationService>>());
+        ConversationTitleGenerator titleGenerator = Substitute.For<ConversationTitleGenerator>(
+            chatClient, Substitute.For<ILogger<ConversationTitleGenerator>>());
 
-        return new CosmosChatMessageStore(cosmosClient, DatabaseId, ContainerId, logger);
+        return new CosmosChatMessageStore(
+            cosmosClient, DatabaseId, ContainerId, logger, conversationService, titleGenerator);
     }
 
     private static AgentSession CreateSessionWithConversationId(string conversationId)

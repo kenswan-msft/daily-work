@@ -54,5 +54,6 @@ internal static class CliServiceRegistration
             return new AguiChatAgent(httpClientFactory, apiOptions.Value, loggerFactory);
         });
         services.AddTransient<ChatOrchestrator>();
+        services.AddTransient<ConversationHistoryClient>();
     }
 }

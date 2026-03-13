@@ -6,7 +6,8 @@ namespace DailyWork.Cli;
 public class ChatOrchestrator(
     IChatRenderer renderer,
     IChatInputReader inputReader,
-    IChatAgent agent)
+    IChatAgent agent,
+    ConversationHistoryClient historyClient)
 {
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -33,6 +34,19 @@ public class ChatOrchestrator(
                 {
                     renderer.RenderGoodbye();
                     break;
+                }
+
+                if (input.StartsWith('/'))
+                {
+                    bool handled = await HandleSlashCommandAsync(input, messages, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (!handled)
+                    {
+                        renderer.RenderSlashCommandUnknown(input);
+                    }
+
+                    continue;
                 }
 
                 messages.Add(new ChatMessage(ChatRole.User, input));
@@ -64,5 +78,54 @@ public class ChatOrchestrator(
         {
             renderer.RenderError(ex.Message);
         }
+    }
+
+    internal async Task<bool> HandleSlashCommandAsync(
+        string input,
+        List<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        string command = input.Split(' ', 2)[0].ToLowerInvariant();
+
+        return command switch
+        {
+            "/history" => await HandleHistoryCommandAsync(messages, cancellationToken)
+                .ConfigureAwait(false),
+            _ => false,
+        };
+    }
+
+    internal virtual async Task<bool> HandleHistoryCommandAsync(
+        List<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ConversationSummary> conversations =
+            await historyClient.GetConversationsAsync(cancellationToken).ConfigureAwait(false);
+
+        ConversationSummary? selected = renderer.PromptConversationSelection(conversations);
+
+        if (selected is null)
+        {
+            return true;
+        }
+
+        IReadOnlyList<ConversationMessage> historyMessages =
+            await historyClient.GetConversationMessagesAsync(selected.Id, cancellationToken)
+                .ConfigureAwait(false);
+
+        renderer.RenderConversationHistory(historyMessages);
+
+        await agent.ResumeSessionAsync(selected.Id, cancellationToken).ConfigureAwait(false);
+
+        // Populate local message list with history for context continuity
+        messages.Clear();
+        foreach (ConversationMessage msg in historyMessages)
+        {
+            messages.Add(new ChatMessage(new ChatRole(msg.Role), msg.Content));
+        }
+
+        renderer.RenderConversationResumed(selected.Title);
+
+        return true;
     }
 }

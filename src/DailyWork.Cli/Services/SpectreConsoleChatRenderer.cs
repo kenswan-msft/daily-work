@@ -28,6 +28,7 @@ public class SpectreConsoleChatRenderer : IChatRenderer
             new Panel(
                     new Markup(
                         "[dim]Type your message to start a conversation.\n" +
+                        "Type [cyan]/history[/] to browse and resume previous conversations.\n" +
                         "Type [cyan]:q[/], [cyan]quit[/], or [cyan]exit[/] to leave.[/]"))
                 .Border(BoxBorder.Rounded)
                 .BorderStyle(Style.Parse("grey"))
@@ -51,6 +52,78 @@ public class SpectreConsoleChatRenderer : IChatRenderer
 
     public void RenderError(string message) =>
         AnsiConsole.MarkupLine($"[red]An error occurred: {Markup.Escape(message)}[/]");
+
+    public void RenderSlashCommandUnknown(string command) =>
+        AnsiConsole.MarkupLine($"[yellow]Unknown command: {Markup.Escape(command)}. Type [cyan]/history[/] to browse conversations.[/]");
+
+    public void RenderConversationHistory(IReadOnlyList<ConversationMessage> messages)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(
+            new Rule("[cyan]Conversation History[/]")
+                .RuleStyle(Style.Parse("dim"))
+                .Centered());
+        AnsiConsole.WriteLine();
+
+        foreach (ConversationMessage message in messages)
+        {
+            string roleColor = message.Role.Equals("user", StringComparison.OrdinalIgnoreCase)
+                ? "cyan"
+                : "green";
+            string roleLabel = message.Role.Equals("user", StringComparison.OrdinalIgnoreCase)
+                ? "You"
+                : "Assistant";
+
+            AnsiConsole.Write(
+                new Panel(Markup.Escape(message.Content))
+                    .Header($"[{roleColor}]{roleLabel}[/] [dim]{message.Timestamp:g}[/]")
+                    .Border(BoxBorder.Rounded)
+                    .BorderStyle(Style.Parse(roleColor + " dim"))
+                    .Expand());
+        }
+
+        AnsiConsole.Write(
+            new Rule("[dim]End of history[/]")
+                .RuleStyle(Style.Parse("dim"))
+                .Centered());
+        AnsiConsole.WriteLine();
+    }
+
+    public void RenderConversationResumed(string title) =>
+        AnsiConsole.MarkupLine($"[green]Resumed conversation:[/] [cyan]{Markup.Escape(title)}[/]\n");
+
+    public ConversationSummary? PromptConversationSelection(
+        IReadOnlyList<ConversationSummary> conversations)
+    {
+        if (conversations.Count == 0)
+        {
+            AnsiConsole.MarkupLine("[yellow]No previous conversations found.[/]");
+            return null;
+        }
+
+        const string cancelOption = "← Cancel (return to current session)";
+
+        var choices = conversations
+            .Select(c => $"{Markup.Escape(c.Title)}  [dim]({c.LastMessageAt:g}, {c.MessageCount} msgs)[/]")
+            .Append(cancelOption)
+            .ToList();
+
+        string selected = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("[cyan]Select a conversation to resume:[/]")
+                .PageSize(15)
+                .HighlightStyle(Style.Parse("cyan bold"))
+                .AddChoices(choices)
+                .UseConverter(c => c));
+
+        if (selected == cancelOption)
+        {
+            return null;
+        }
+
+        int index = choices.IndexOf(selected);
+        return index >= 0 && index < conversations.Count ? conversations[index] : null;
+    }
 
     public void RenderResponseDivider() =>
         AnsiConsole.WriteLine();

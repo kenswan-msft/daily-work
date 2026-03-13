@@ -1,4 +1,5 @@
 using DailyWork.Agents.Factories;
+using DailyWork.Agents.Conversations;
 using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
 using Microsoft.Azure.Cosmos;
@@ -22,7 +23,12 @@ public class ChatAgentTests
         IChatClient chatClient = Substitute.For<IChatClient>();
         CosmosClient cosmosClient = Substitute.For<CosmosClient>();
         ILogger<CosmosChatMessageStore> logger = Substitute.For<ILogger<CosmosChatMessageStore>>();
-        var chatHistoryProvider = new CosmosChatMessageStore(cosmosClient, "database", "container", logger);
+        ConversationService conversationService = Substitute.For<ConversationService>(
+            cosmosClient, "db", "meta", "msg", Substitute.For<ILogger<ConversationService>>());
+        ConversationTitleGenerator titleGenerator = Substitute.For<ConversationTitleGenerator>(
+            chatClient, Substitute.For<ILogger<ConversationTitleGenerator>>());
+        var chatHistoryProvider = new CosmosChatMessageStore(
+            cosmosClient, "database", "container", logger, conversationService, titleGenerator);
         var sut = new ChatAgent(chatClient, chatHistoryProvider);
 
         AIAgent agent = sut.Create();

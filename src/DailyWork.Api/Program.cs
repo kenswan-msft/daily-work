@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DailyWork.Agents;
+using DailyWork.Agents.Conversations;
 using DailyWork.Agents.Factories;
 using Microsoft.Agents.AI.Hosting.AGUI.AspNetCore;
 
@@ -16,6 +17,8 @@ builder.Services.AddAGUI();
 
 builder.Services
     .AddAgenticChatClient()
+    .AddConversationTitleGenerator()
+    .AddConversationService()
     .AddCosmosChatHistoryProvider()
     .AddRequestScopedAGUIAgent()
     .AddAgentFactory<ChatAgent>();
@@ -30,6 +33,33 @@ if (app.Environment.IsDevelopment())
 app.MapDefaultEndpoints();
 
 app.MapAGUI("/api/chat", app.Services.GetRequiredKeyedService<RequestScopedAGUIAgent>(ChatAgent.AgentName));
+
+app.MapGet("/api/conversations", async (ConversationService conversationService, CancellationToken cancellationToken) =>
+{
+    IReadOnlyList<ConversationMetadataEntity> conversations =
+        await conversationService.GetConversationsAsync(cancellationToken).ConfigureAwait(false);
+
+    return Results.Ok(conversations.Select(c => new
+    {
+        c.Id,
+        c.Title,
+        c.CreatedAt,
+        c.LastMessageAt,
+        c.MessageCount
+    }));
+});
+
+app.MapGet("/api/conversations/{id}/messages", async (
+    string id,
+    ConversationService conversationService,
+    CancellationToken cancellationToken) =>
+{
+    IReadOnlyList<ConversationMessageSummary> messages =
+        await conversationService.GetConversationMessagesAsync(id, cancellationToken)
+            .ConfigureAwait(false);
+
+    return Results.Ok(messages);
+});
 
 app.Run();
 

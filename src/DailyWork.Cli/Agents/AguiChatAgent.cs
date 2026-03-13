@@ -25,21 +25,14 @@ public class AguiChatAgent : IChatAgent
 
     public async Task InitializeSessionAsync(CancellationToken cancellationToken)
     {
-        AGUIChatClient aguiClient = new(
-            httpClientFactory.CreateClient("DailyWorkApi"),
-            apiOptions.ChatEndpoint,
-            loggerFactory);
-
         string conversationId = Guid.NewGuid().ToString();
-
-        agent = aguiClient.AsAIAgent(
-            name: "DailyWork Chat",
-            description: "Chat with the DailyWork assistant via AGUI");
-
-        session = await agent
-            .CreateSessionAsync(conversationId, cancellationToken)
+        await InitializeWithConversationIdAsync(conversationId, cancellationToken)
             .ConfigureAwait(false);
     }
+
+    public async Task ResumeSessionAsync(string conversationId, CancellationToken cancellationToken) =>
+        await InitializeWithConversationIdAsync(conversationId, cancellationToken)
+            .ConfigureAwait(false);
 
     public IAsyncEnumerable<AgentResponseUpdate> StreamResponseAsync(
         IReadOnlyList<ChatMessage> messages,
@@ -58,5 +51,23 @@ public class AguiChatAgent : IChatAgent
     {
         GC.SuppressFinalize(this);
         return ValueTask.CompletedTask;
+    }
+
+    private async Task InitializeWithConversationIdAsync(
+        string conversationId,
+        CancellationToken cancellationToken)
+    {
+        AGUIChatClient aguiClient = new(
+            httpClientFactory.CreateClient("DailyWorkApi"),
+            apiOptions.ChatEndpoint,
+            loggerFactory);
+
+        agent = aguiClient.AsAIAgent(
+            name: "DailyWork Chat",
+            description: "Chat with the DailyWork assistant via AGUI");
+
+        session = await agent
+            .CreateSessionAsync(conversationId, cancellationToken)
+            .ConfigureAwait(false);
     }
 }

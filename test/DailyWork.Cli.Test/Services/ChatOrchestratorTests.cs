@@ -2,6 +2,8 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace DailyWork.Cli.Test;
 
@@ -10,6 +12,8 @@ public class ChatOrchestratorTests
     private readonly IChatRenderer renderer = Substitute.For<IChatRenderer>();
     private readonly IChatInputReader inputReader = Substitute.For<IChatInputReader>();
     private readonly IChatAgent agent = Substitute.For<IChatAgent>();
+    private readonly MockHttpMessageHandler httpMessageHandler = new();
+    private readonly ConversationHistoryClient historyClient;
     private readonly ChatOrchestrator sut;
 
     public ChatOrchestratorTests()
@@ -20,7 +24,21 @@ public class ChatOrchestratorTests
                 Arg.Any<CancellationToken>())
             .Returns(EmptyStream());
 
-        sut = new ChatOrchestrator(renderer, inputReader, agent);
+        IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
+        httpMessageHandler.SetResponse(
+            "/api/conversations",
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(Array.Empty<ConversationSummary>()),
+            });
+        httpClientFactory.CreateClient("DailyWorkApi").Returns(
+            new HttpClient(httpMessageHandler)
+            {
+                BaseAddress = new Uri("https://localhost"),
+            });
+        historyClient = new ConversationHistoryClient(httpClientFactory);
+
+        sut = new ChatOrchestrator(renderer, inputReader, agent, historyClient);
     }
 
     [Fact]
@@ -69,6 +87,47 @@ public class ChatOrchestratorTests
         renderer.Received(1).RenderGoodbye();
         agent.DidNotReceive()
             .StreamResponseAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RunAsync_SlashCommand_Unknown_RendersWarning()
+    {
+        inputReader.ReadInput().Returns("/unknown", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.Received(1).RenderSlashCommandUnknown("/unknown");
+    }
+
+    [Fact]
+    public async Task RunAsync_SlashCommand_DoesNotSendToAgent()
+    {
+        inputReader.ReadInput().Returns("/history", ":q");
+        renderer.PromptConversationSelection(Arg.Any<IReadOnlyList<ConversationSummary>>())
+            .Returns((ConversationSummary?)null);
+
+        await sut.RunAsync(CancellationToken.None);
+
+        agent.DidNotReceive()
+            .StreamResponseAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RunAsync_HistoryCommand_CancelReturnsToCurrentSession()
+    {
+        inputReader.ReadInput().Returns("/history", "hello", ":q");
+        renderer.PromptConversationSelection(Arg.Any<IReadOnlyList<ConversationSummary>>())
+            .Returns((ConversationSummary?)null);
+        renderer.RenderStreamingResponseAsync(
+                Arg.Any<IAsyncEnumerable<AgentResponseUpdate>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ChatResponseResult("response", []));
+
+        await sut.RunAsync(CancellationToken.None);
+
+        agent.Received(1)
+            .StreamResponseAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<CancellationToken>());
+        await agent.DidNotReceive().ResumeSessionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
