@@ -23,8 +23,8 @@ builder.Services
     .AddCosmosChatHistoryProvider()
     .AddRequestScopedAGUIAgent()
     .AddMcpClient(McpClientKeys.Goals, builder.Configuration)
-    .AddGoalsAgent()
-    .AddAgentFactory<ChatAgent>();
+    .AddAgentFactoryAsTool<GoalsAgent>(AgentKeys.Goals)
+    .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();
 
@@ -35,7 +35,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapDefaultEndpoints();
 
-app.MapAGUI("/api/chat", app.Services.GetRequiredKeyedService<RequestScopedAGUIAgent>(ChatAgent.AgentName));
+app.MapAGUI("/api/chat", app.Services.GetRequiredKeyedService<RequestScopedAGUIAgent>(AgentKeys.Chat));
 
 app.MapGet("/api/conversations", async (ConversationService conversationService, CancellationToken cancellationToken) =>
 {

@@ -1,5 +1,6 @@
 using DailyWork.Agents.Clients;
 using DailyWork.Agents.Messages;
+using Microsoft.Agents.AI;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
@@ -145,4 +146,66 @@ public class ServiceCollectionExtensionsTests
                 ["McpClients:0:Name"] = "Test MCP"
             })
             .Build();
+
+    [Fact]
+    public void AddAgentFactoryAsTool_RegistersFactoryAsSingleton()
+    {
+        const string key = "test-key";
+        ServiceCollection services = new();
+        services.AddSingleton(Substitute.For<IChatClient>());
+        services.AddAgentFactoryAsTool<TestAgentFactory>(key);
+
+        ServiceDescriptor? descriptor = services.FirstOrDefault(
+            d => d.ServiceType == typeof(TestAgentFactory));
+
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+    }
+
+    [Fact]
+    public void AddAgentFactoryAsTool_RegistersKeyedAIToolWithProvidedKey()
+    {
+        const string key = "custom-key";
+        ServiceCollection services = new();
+        services.AddSingleton(Substitute.For<IChatClient>());
+        services.AddAgentFactoryAsTool<TestAgentFactory>(key);
+
+        ServiceDescriptor? descriptor = services.FirstOrDefault(
+            d => d.ServiceType == typeof(AITool)
+                && d.ServiceKey is string k
+                && k == key);
+
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+    }
+
+    [Fact]
+    public void AddAgentFactoryAsTool_ResolvesKeyedAITool()
+    {
+        const string key = "test-key";
+        ServiceCollection services = new();
+        services.AddSingleton(Substitute.For<IChatClient>());
+        services.AddAgentFactoryAsTool<TestAgentFactory>(key);
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        AITool tool = provider.GetRequiredKeyedService<AITool>(key);
+
+        Assert.NotNull(tool);
+    }
+
+    private sealed class TestAgentFactory(IChatClient chatClient) : IAgentFactory
+    {
+        public static string AgentName => "test-agent";
+
+        public static string? AgentDescription => "A test agent";
+
+        public AIAgent Create() =>
+            chatClient.AsAIAgent(new ChatClientAgentOptions
+            {
+                Name = AgentName,
+                Description = AgentDescription,
+                ChatOptions = new ChatOptions { Instructions = "Test" }
+            });
+    }
 }

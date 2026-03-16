@@ -1,6 +1,5 @@
 using DailyWork.Agents.Clients;
 using DailyWork.Agents.Conversations;
-using DailyWork.Agents.Factories;
 using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting;
@@ -124,13 +123,14 @@ public static class ServiceCollectionExtensions
         }
 
         public IHostedAgentBuilder AddAgentFactory<TFactory>(
+            string key,
             ServiceLifetime lifetime = ServiceLifetime.Singleton)
             where TFactory : class, IAgentFactory
         {
             services.AddSingleton<TFactory>();
 
             return services.AddAIAgent(
-                TFactory.AgentName,
+                key,
                 (sp, _) => sp.GetRequiredService<TFactory>().Create());
         }
 
@@ -211,24 +211,28 @@ public static class ServiceCollectionExtensions
         }
 
         /// <summary>
-        /// Registers a <see cref="GoalsAgent"/> and exposes it as a keyed
-        /// <see cref="AITool"/> so that <see cref="ChatAgent"/> can delegate to it.
+        /// Registers <typeparamref name="TFactory"/> as a singleton and exposes
+        /// the agent it creates as a keyed <see cref="AITool"/> singleton, using
+        /// the provided <paramref name="key"/> as the service key. This allows
+        /// other agents to inject the tool via
+        /// <c>[FromKeyedServices(AgentKeys.X)] AITool</c>.
         /// </summary>
-        public IServiceCollection AddGoalsAgent()
+        public IServiceCollection AddAgentFactoryAsTool<TFactory>(string key)
+            where TFactory : class, IAgentFactory
         {
-            services.AddSingleton<GoalsAgent>();
+            services.AddSingleton<TFactory>();
 
             services.AddKeyedSingleton<AITool>(
-                GoalsAgent.AgentName,
+                key,
                 (sp, _) =>
                 {
-                    GoalsAgent factory = sp.GetRequiredService<GoalsAgent>();
+                    TFactory factory = sp.GetRequiredService<TFactory>();
                     AIAgent agent = factory.Create();
 
                     return agent.AsAIFunction(new AIFunctionFactoryOptions
                     {
-                        Name = GoalsAgent.AgentName,
-                        Description = GoalsAgent.AgentDescription
+                        Name = TFactory.AgentName,
+                        Description = TFactory.AgentDescription
                     });
                 });
 

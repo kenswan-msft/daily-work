@@ -8,7 +8,7 @@ namespace DailyWork.Agents.Factories;
 public sealed class ChatAgent(
     IChatClient chatClient,
     CosmosChatMessageStore chatHistoryProvider,
-    [FromKeyedServices("goals")] AITool goalsAgentTool) : IAgentFactory
+    [FromKeyedServices(AgentKeys.Goals)] AITool goalsAgentTool) : IAgentFactory
 {
     public static string AgentName => "chat";
 
