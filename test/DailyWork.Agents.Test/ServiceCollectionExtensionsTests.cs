@@ -1,10 +1,12 @@
 using DailyWork.Agents.Clients;
 using DailyWork.Agents.Messages;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ModelContextProtocol.Client;
 using NSubstitute;
 
 namespace DailyWork.Agents.Test;
@@ -82,4 +84,65 @@ public class ServiceCollectionExtensionsTests
             Environment.SetEnvironmentVariable(ContainerNameVariable, originalContainerName);
         }
     }
+
+    [Fact]
+    public void AddMcpClient_RegistersKeyedMcpClientSingleton()
+    {
+        const string key = "test-mcp";
+        IConfiguration configuration = BuildMcpConfiguration(key, "https://localhost:5001");
+
+        ServiceCollection services = new();
+        services.AddHttpClient();
+        services.AddMcpClient(key, configuration);
+
+        ServiceDescriptor? descriptor = services.FirstOrDefault(
+            d => d.ServiceType == typeof(McpClient) && d.ServiceKey is string k && k == key);
+
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+    }
+
+    [Fact]
+    public void AddMcpClient_RegistersKeyedAIToolListSingleton()
+    {
+        const string key = "test-mcp";
+        IConfiguration configuration = BuildMcpConfiguration(key, "https://localhost:5001");
+
+        ServiceCollection services = new();
+        services.AddHttpClient();
+        services.AddMcpClient(key, configuration);
+
+        ServiceDescriptor? descriptor = services.FirstOrDefault(
+            d => d.ServiceType == typeof(IList<AITool>) && d.ServiceKey is string k && k == key);
+
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+    }
+
+    [Fact]
+    public void AddMcpClient_KeyNotInConfiguration_ThrowsInvalidOperationException()
+    {
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        ServiceCollection services = new();
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+            () => services.AddMcpClient("missing-key", configuration));
+
+        Assert.Equal(
+            "No McpClients entry found with Key 'missing-key'.",
+            exception.Message);
+    }
+
+    private static IConfiguration BuildMcpConfiguration(string key, string endpoint) =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["McpClients:0:Key"] = key,
+                ["McpClients:0:Endpoint"] = endpoint,
+                ["McpClients:0:Name"] = "Test MCP"
+            })
+            .Build();
 }

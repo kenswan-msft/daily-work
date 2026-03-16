@@ -149,64 +149,57 @@ public static class ServiceCollectionExtensions
         }
 
         /// <summary>
-        /// Registers MCP clients from the <c>McpClients</c> configuration section.
-        /// Each entry produces a keyed <see cref="McpClient"/> singleton. The endpoint
+        /// Registers an MCP client and its tools for the given <paramref name="key"/>.
+        /// The key must match an entry in the <c>McpClients</c> configuration section.
+        /// This produces a keyed <see cref="McpClient"/> singleton and a keyed
+        /// <see cref="IList{AITool}"/> singleton under the same key. The endpoint
         /// is resolved using the following fallback chain:
         /// <list type="number">
         ///   <item>Aspire service binding: <c>services:{key}:https:0</c> or <c>services:{key}:http:0</c></item>
         ///   <item>Explicit <see cref="McpServerConnectionOptions.Endpoint"/> from configuration</item>
         /// </list>
         /// </summary>
-        public IServiceCollection AddMcpClients(IConfiguration configuration)
+        public IServiceCollection AddMcpClient(string key, IConfiguration configuration)
         {
             List<McpServerConnectionOptions> clients = configuration
                 .GetSection("McpClients")
                 .Get<List<McpServerConnectionOptions>>() ?? [];
 
-            foreach (McpServerConnectionOptions options in clients)
-            {
-                if (string.IsNullOrWhiteSpace(options.Key))
+            McpServerConnectionOptions options = clients
+                .FirstOrDefault(c => c.Key == key)
+                ?? throw new InvalidOperationException(
+                    $"No McpClients entry found with Key '{key}'.");
+
+            services.AddKeyedSingleton<McpClient>(
+                key,
+                (serviceProvider, _) =>
                 {
-                    throw new InvalidOperationException(
-                        "Each McpClients entry must have a non-empty 'Key'.");
-                }
+                    IHttpClientFactory httpClientFactory =
+                        serviceProvider.GetRequiredService<IHttpClientFactory>();
 
-                services.AddKeyedSingleton<McpClient>(
-                    options.Key,
-                    (serviceProvider, _) =>
-                    {
-                        IHttpClientFactory httpClientFactory =
-                            serviceProvider.GetRequiredService<IHttpClientFactory>();
+                    string endpointUrl = ResolveEndpoint(key, options.Endpoint, configuration);
 
-                        string endpointUrl = ResolveEndpoint(options.Key, options.Endpoint, configuration);
+                    var transport = new HttpClientTransport(
+                        new HttpClientTransportOptions
+                        {
+                            Endpoint = new Uri(endpointUrl),
+                            Name = options.Name
+                        },
+                        httpClientFactory.CreateClient());
 
-                        var transport = new HttpClientTransport(
-                            new HttpClientTransportOptions
-                            {
-                                Endpoint = new Uri(endpointUrl),
-                                Name = options.Name
-                            },
-                            httpClientFactory.CreateClient());
+                    McpClient mcpClient = McpClient
+                        .CreateAsync(transport)
+                        .GetAwaiter()
+                        .GetResult();
 
-                        McpClient mcpClient = McpClient
-                            .CreateAsync(transport)
-                            .GetAwaiter()
-                            .GetResult();
+                    return mcpClient;
+                });
 
-                        return mcpClient;
-                    });
-            }
-
-            return services;
-        }
-
-        public IServiceCollection AddMcpTools(string mcpClientKey)
-        {
             services.AddKeyedSingleton<IList<AITool>>(
-                mcpClientKey,
+                key,
                 (sp, _) =>
                 {
-                    McpClient mcpClient = sp.GetRequiredKeyedService<McpClient>(mcpClientKey);
+                    McpClient mcpClient = sp.GetRequiredKeyedService<McpClient>(key);
                     IList<McpClientTool> tools = mcpClient.ListToolsAsync()
                         .AsTask()
                         .GetAwaiter()

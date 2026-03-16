@@ -1,3 +1,4 @@
+using DailyWork.Agents.Clients;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,7 +7,7 @@ namespace DailyWork.Agents.Factories;
 
 public sealed class GoalsAgent(
     IChatClient chatClient,
-    [FromKeyedServices("goals-mcp")] IList<AITool> mcpTools) : IAgentFactory
+    [FromKeyedServices(McpClientKeys.Goals)] IList<AITool> mcpTools) : IAgentFactory
 {
     public static string AgentName => "goals";
 

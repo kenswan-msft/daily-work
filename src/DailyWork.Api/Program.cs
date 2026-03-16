@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DailyWork.Agents;
+using DailyWork.Agents.Clients;
 using DailyWork.Agents.Conversations;
 using DailyWork.Agents.Factories;
 using Microsoft.Agents.AI.Hosting.AGUI.AspNetCore;
@@ -21,8 +22,7 @@ builder.Services
     .AddConversationService()
     .AddCosmosChatHistoryProvider()
     .AddRequestScopedAGUIAgent()
-    .AddMcpClients(builder.Configuration)
-    .AddMcpTools("goals-mcp")
+    .AddMcpClient(McpClientKeys.Goals, builder.Configuration)
     .AddGoalsAgent()
     .AddAgentFactory<ChatAgent>();
 
