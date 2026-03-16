@@ -1,0 +1,17 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using MudBlazor
+
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All"
+                Icon="@Icons.Material.Filled.Dashboard">
+        Dashboard
+    </MudNavLink>
+    <MudNavLink Href="/goals" Match="NavLinkMatch.Prefix"
+                Icon="@Icons.Material.Filled.FlagCircle">
+        Goals
+    </MudNavLink>
+    <MudNavLink Href="/todos" Match="NavLinkMatch.Prefix"
+                Icon="@Icons.Material.Filled.CheckCircle">
+        Todos
+    </MudNavLink>
+</MudNavMenu>

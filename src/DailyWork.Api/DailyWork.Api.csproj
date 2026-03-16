@@ -6,11 +6,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DailyWork.Agents\DailyWork.Agents.csproj" />
+    <ProjectReference Include="..\DailyWork.Mcp.Goals\DailyWork.Mcp.Goals.csproj" />
     <ProjectReference Include="..\DailyWork.ServiceDefaults\DailyWork.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Microsoft.Azure.Cosmos" />
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Microsoft.Agents.AI.Hosting.AGUI.AspNetCore" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
   </ItemGroup>

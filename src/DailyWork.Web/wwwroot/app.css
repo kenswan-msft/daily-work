@@ -1,0 +1,7 @@
+html, body {
+    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.mud-main-content {
+    min-height: calc(100vh - 64px);
+}

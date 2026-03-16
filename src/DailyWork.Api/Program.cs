@@ -3,6 +3,7 @@ using DailyWork.Agents;
 using DailyWork.Agents.Clients;
 using DailyWork.Agents.Conversations;
 using DailyWork.Agents.Factories;
+using DailyWork.Api.Dashboard;
 using Microsoft.Agents.AI.Hosting.AGUI.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,7 @@ builder.AddAzureCosmosClient("conversations-db", configureClientOptions: options
 {
     options.UseSystemTextJsonSerializerWithOptions = JsonSerializerOptions.Default;
 });
+builder.AddSqlServerDbContext<GoalsReadDbContext>("goals-db");
 
 builder.Services.AddOpenApi();
 builder.Services.AddAGUI();
@@ -34,6 +36,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapDefaultEndpoints();
+app.MapDashboardEndpoints();
 
 app.MapAGUI("/api/chat", app.Services.GetRequiredKeyedService<RequestScopedAGUIAgent>(AgentKeys.Chat));
 

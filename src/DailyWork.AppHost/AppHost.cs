@@ -55,7 +55,9 @@ IResourceBuilder<ProjectResource> blackjackMcp =
         .WithReference(blackjackDb)
         .WaitFor(blackjackDb);
 
-builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
+IResourceBuilder<ProjectResource> api =
+    builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
+    .WithReference(goalsDb)
     .WithReference(goalsMcp)
     .WithReference(blackjackMcp)
     .WithReference(cosmosDatabase)
@@ -64,5 +66,9 @@ builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WaitFor(cosmosDatabase)
     .WaitFor(goalsMcp)
     .WaitFor(blackjackMcp);
+
+builder.AddProject<Projects.DailyWork_Web>("dailywork-web")
+    .WithReference(api)
+    .WithExternalHttpEndpoints();
 
 builder.Build().Run();

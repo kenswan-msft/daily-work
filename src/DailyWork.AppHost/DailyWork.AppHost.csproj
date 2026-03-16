@@ -15,6 +15,7 @@
     <ProjectReference Include="..\DailyWork.Api\DailyWork.Api.csproj" />
     <ProjectReference Include="..\DailyWork.Mcp.Blackjack\DailyWork.Mcp.Blackjack.csproj" />
     <ProjectReference Include="..\DailyWork.Mcp.Goals\DailyWork.Mcp.Goals.csproj" />
+    <ProjectReference Include="..\DailyWork.Web\DailyWork.Web.csproj" />
   </ItemGroup>
 
 </Project>

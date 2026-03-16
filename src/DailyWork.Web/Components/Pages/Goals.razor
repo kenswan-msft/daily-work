@@ -1,0 +1,176 @@
+@page "/goals"
+@using DailyWork.Web.Models
+@using DailyWork.Web.Services
+@using MudBlazor
+@inject DashboardApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Goals - DailyWork</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Goals</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <div class="d-flex gap-2 flex-wrap">
+        <MudChip T="string"
+                 Color="@(statusFilter is null ? Color.Primary : Color.Default)"
+                 Variant="Variant.Filled"
+                 OnClick="@(() => FilterByStatus(null))">
+            All
+        </MudChip>
+        @foreach (string status in new[] { "NotStarted", "InProgress", "Completed", "Archived" })
+        {
+            <MudChip T="string"
+                     Color="@(statusFilter == status ? Color.Primary : Color.Default)"
+                     Variant="@(statusFilter == status ? Variant.Filled : Variant.Outlined)"
+                     OnClick="@(() => FilterByStatus(status))">
+                @status
+            </MudChip>
+        }
+    </div>
+</MudPaper>
+
+@if (loading)
+{
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="400px" />
+}
+else if (error is not null)
+{
+    <MudAlert Severity="Severity.Error">Unable to load goals: @error</MudAlert>
+}
+else if (goals.Count == 0)
+{
+    <MudPaper Class="pa-6 text-center" Elevation="2">
+        <MudIcon Icon="@Icons.Material.Filled.FlagCircle" Size="Size.Large" Color="Color.Default" />
+        <MudText Typo="Typo.h6" Class="mt-2">No goals found</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Default">
+            Create goals via the CLI or chat agent to see them here.
+        </MudText>
+    </MudPaper>
+}
+else
+{
+    <MudGrid>
+        @foreach (GoalSummary goal in goals)
+        {
+            <MudItem xs="12" md="6" lg="4">
+                <div @onclick="@(() => ViewGoalDetail(goal.Id))" style="cursor: pointer;">
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@goal.Title</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string"
+                                     Color="@GetStatusColor(goal.Status)"
+                                     Size="Size.Small"
+                                     Variant="Variant.Filled">
+                                @goal.Status
+                            </MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <MudChip T="string"
+                                     Color="@GetPriorityColor(goal.Priority)"
+                                     Size="Size.Small"
+                                     Variant="Variant.Outlined">
+                                @goal.Priority
+                            </MudChip>
+                            @if (goal.TargetDate is not null)
+                            {
+                                <MudText Typo="Typo.caption">Target: @goal.TargetDate</MudText>
+                            }
+                        </div>
+
+                        @if (goal.TodoCount > 0)
+                        {
+                            double progress = goal.TodoCount > 0
+                                ? (double)goal.CompletedTodoCount / goal.TodoCount * 100
+                                : 0;
+                            <MudProgressLinear Color="Color.Primary"
+                                              Value="@progress"
+                                              Class="my-2"
+                                              Rounded="true"
+                                              Size="Size.Medium" />
+                            <MudText Typo="Typo.caption">
+                                @goal.CompletedTodoCount / @goal.TodoCount todos completed
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Default">No todos linked</MudText>
+                        }
+
+                        @if (goal.Tags.Length > 0)
+                        {
+                            <div class="d-flex gap-1 flex-wrap mt-2">
+                                @foreach (string tag in goal.Tags)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">
+                                        #@tag
+                                    </MudChip>
+                                }
+                            </div>
+                        }
+                    </MudCardContent>
+                </MudCard>
+                </div>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<GoalSummary> goals = [];
+    private string? statusFilter;
+    private bool loading = true;
+    private string? error;
+
+    protected override async Task OnInitializedAsync() => await LoadGoalsAsync().ConfigureAwait(false);
+
+    private async Task FilterByStatus(string? status)
+    {
+        statusFilter = status;
+        loading = true;
+        await LoadGoalsAsync().ConfigureAwait(false);
+    }
+
+    private async Task LoadGoalsAsync()
+    {
+        try
+        {
+            goals = await Api.GetGoalsAsync(statusFilter).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ViewGoalDetail(Guid goalId) =>
+        Navigation.NavigateTo($"/goals/{goalId}");
+
+    private static Color GetStatusColor(string status) =>
+        status switch
+        {
+            "Completed" => Color.Success,
+            "InProgress" => Color.Info,
+            "NotStarted" => Color.Default,
+            "Archived" => Color.Warning,
+            _ => Color.Default
+        };
+
+    private static Color GetPriorityColor(string priority) =>
+        priority switch
+        {
+            "Critical" => Color.Error,
+            "High" => Color.Warning,
+            "Medium" => Color.Info,
+            "Low" => Color.Default,
+            _ => Color.Default
+        };
+}

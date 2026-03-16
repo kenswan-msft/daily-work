@@ -1,0 +1,251 @@
+@page "/"
+@using DailyWork.Web.Models
+@using DailyWork.Web.Services
+@using MudBlazor
+@inject DashboardApiClient Api
+
+<PageTitle>DailyWork Dashboard</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
+
+@if (loading)
+{
+    <MudGrid>
+        @for (int i = 0; i < 4; i++)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="120px" />
+            </MudItem>
+        }
+        <MudItem xs="12" md="6">
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="300px" />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="300px" />
+        </MudItem>
+    </MudGrid>
+}
+else if (error is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">
+        Unable to load dashboard data: @error
+    </MudAlert>
+}
+else if (overview is not null)
+{
+    <MudGrid>
+        @* Quick Stats Cards *@
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Color="Color.Default">Total Goals</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Primary">@overview.TotalGoals</MudText>
+                <MudText Typo="Typo.caption">@overview.ActiveGoals active</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Color="Color.Default">Active Todos</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Secondary">@overview.InProgressTodoCount</MudText>
+                <MudText Typo="Typo.caption">of @overview.TotalTodos total</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Color="Color.Default">Due Today</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Warning">@overview.DueTodayCount</MudText>
+                <MudText Typo="Typo.caption">items need attention</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Color="Color.Default">Overdue</MudText>
+                <MudText Typo="Typo.h3" Color="@(overview.OverdueTodoCount > 0 ? Color.Error : Color.Success)">
+                    @overview.OverdueTodoCount
+                </MudText>
+                <MudText Typo="Typo.caption">
+                    @(overview.OverdueTodoCount > 0 ? "need immediate attention" : "all on track!")
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        @* Goal Progress Chart *@
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Goal Progress</MudText>
+                @if (overview.GoalsByStatus.Length > 0)
+                {
+                    <MudChart T="double"
+                              ChartType="ChartType.Donut"
+                              @bind-SelectedIndex="@selectedChartIndex"
+                              ChartSeries="@([goalChartData])"
+                              ChartLabels="@goalChartLabels"
+                              Width="280px"
+                              Height="280px"
+                              ChartOptions="@goalChartOptions" />
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        @foreach (StatusCount status in overview.GoalsByStatus)
+                        {
+                            <MudChip T="string"
+                                     Color="@GetStatusColor(status.Status)"
+                                     Size="Size.Small"
+                                     Variant="Variant.Outlined">
+                                @status.Status: @status.Count
+                            </MudChip>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Default">No goals yet. Create one to get started!</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+
+        @* Daily Focus *@
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2" Style="max-height: 400px; overflow-y: auto;">
+                <MudText Typo="Typo.h6" Class="mb-3">Today's Focus</MudText>
+                @if (focusItems.Count > 0)
+                {
+                    <MudList T="string" Dense="true">
+                        @foreach (DailyFocusItem item in focusItems.Take(8))
+                        {
+                            <MudListItem>
+                                <div class="d-flex align-center gap-2">
+                                    <MudChip T="string"
+                                             Color="@GetPriorityColor(item.Priority)"
+                                             Size="Size.Small"
+                                             Variant="Variant.Filled">
+                                        @item.Score
+                                    </MudChip>
+                                    <div>
+                                        <MudText Typo="Typo.body1">@item.Title</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Default">
+                                            @item.Type
+                                            @if (item.GoalTitle is not null)
+                                            {
+                                                <text> · @item.GoalTitle</text>
+                                            }
+                                            @if (item.DueDate is not null)
+                                            {
+                                                <text> · Due: @item.DueDate</text>
+                                            }
+                                        </MudText>
+                                    </div>
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Default">
+                        Nothing to focus on today. Great job! 🎉
+                    </MudText>
+                }
+            </MudPaper>
+        </MudItem>
+
+        @* Overdue Todos Alert *@
+        @if (overdueTodos.Count > 0)
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3" Color="Color.Error">
+                        ⚠ Overdue Items (@overdueTodos.Count)
+                    </MudText>
+                    <MudSimpleTable Dense="true" Hover="true">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Priority</th>
+                                <th>Due Date</th>
+                                <th>Goal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (TodoSummary todo in overdueTodos)
+                            {
+                                <tr>
+                                    <td>@todo.Title</td>
+                                    <td>
+                                        <MudChip T="string"
+                                                 Color="@GetPriorityColor(todo.Priority)"
+                                                 Size="Size.Small">
+                                            @todo.Priority
+                                        </MudChip>
+                                    </td>
+                                    <td>@todo.DueDate</td>
+                                    <td>@(todo.GoalTitle ?? "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private DashboardOverview? overview;
+    private List<DailyFocusItem> focusItems = [];
+    private List<TodoSummary> overdueTodos = [];
+    private bool loading = true;
+    private string? error;
+
+    private double[] goalChartData = [];
+    private string[] goalChartLabels = [];
+    private ChartOptions goalChartOptions = new() { ChartPalette = ["#4caf50", "#2196f3", "#9e9e9e", "#ff9800"] };
+    private int selectedChartIndex = -1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Task<DashboardOverview?> overviewTask = Api.GetOverviewAsync();
+            Task<List<DailyFocusItem>> focusTask = Api.GetFocusItemsAsync(maxItems: 8);
+            Task<List<TodoSummary>> overdueTask = Api.GetTodosAsync(overdue: true);
+
+            await Task.WhenAll(overviewTask, focusTask, overdueTask).ConfigureAwait(false);
+
+            overview = await overviewTask.ConfigureAwait(false);
+            focusItems = await focusTask.ConfigureAwait(false);
+            overdueTodos = await overdueTask.ConfigureAwait(false);
+
+            if (overview?.GoalsByStatus.Length > 0)
+            {
+                goalChartData = overview.GoalsByStatus.Select(s => (double)s.Count).ToArray();
+                goalChartLabels = overview.GoalsByStatus.Select(s => s.Status).ToArray();
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private static Color GetStatusColor(string status) =>
+        status switch
+        {
+            "Completed" => Color.Success,
+            "InProgress" => Color.Info,
+            "NotStarted" => Color.Default,
+            "Archived" => Color.Warning,
+            _ => Color.Default
+        };
+
+    private static Color GetPriorityColor(string priority) =>
+        priority switch
+        {
+            "Critical" => Color.Error,
+            "High" => Color.Warning,
+            "Medium" => Color.Info,
+            "Low" => Color.Default,
+            _ => Color.Default
+        };
+}

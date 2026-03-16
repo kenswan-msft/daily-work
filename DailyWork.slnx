@@ -17,8 +17,10 @@
   <Project Path="src/DailyWork.Mcp.Blackjack/DailyWork.Mcp.Blackjack.csproj" />
   <Project Path="src/DailyWork.Mcp.Goals/DailyWork.Mcp.Goals.csproj" />
   <Project Path="src/DailyWork.ServiceDefaults/DailyWork.ServiceDefaults.csproj" />
+  <Project Path="src/DailyWork.Web/DailyWork.Web.csproj" />
   <Project Path="test/DailyWork.Agents.Test/DailyWork.Agents.Test.csproj" />
   <Project Path="test/DailyWork.Cli.Test/DailyWork.Cli.Test.csproj" />
   <Project Path="test/DailyWork.Mcp.Blackjack.Test/DailyWork.Mcp.Blackjack.Test.csproj" />
   <Project Path="test/DailyWork.Mcp.Goals.Test/DailyWork.Mcp.Goals.Test.csproj" />
+  <Project Path="test/DailyWork.Web.Test/DailyWork.Web.Test.csproj" />
 </Solution>

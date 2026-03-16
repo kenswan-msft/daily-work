@@ -1,0 +1,205 @@
+@page "/todos"
+@using DailyWork.Web.Models
+@using DailyWork.Web.Services
+@using MudBlazor
+@inject DashboardApiClient Api
+
+<PageTitle>Todos - DailyWork</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Todos</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudText Typo="Typo.subtitle2" Class="mb-2">Quick Filters</MudText>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+        <MudChip T="string"
+                 Color="@(activeFilter == "all" ? Color.Primary : Color.Default)"
+                 Variant="Variant.Filled"
+                 OnClick="@(() => ApplyFilter("all"))">
+            All
+        </MudChip>
+        <MudChip T="string"
+                 Color="@(activeFilter == "overdue" ? Color.Error : Color.Default)"
+                 Variant="@(activeFilter == "overdue" ? Variant.Filled : Variant.Outlined)"
+                 OnClick="@(() => ApplyFilter("overdue"))">
+            Overdue
+        </MudChip>
+        <MudChip T="string"
+                 Color="@(activeFilter == "dueToday" ? Color.Warning : Color.Default)"
+                 Variant="@(activeFilter == "dueToday" ? Variant.Filled : Variant.Outlined)"
+                 OnClick="@(() => ApplyFilter("dueToday"))">
+            Due Today
+        </MudChip>
+        <MudChip T="string"
+                 Color="@(activeFilter == "inProgress" ? Color.Info : Color.Default)"
+                 Variant="@(activeFilter == "inProgress" ? Variant.Filled : Variant.Outlined)"
+                 OnClick="@(() => ApplyFilter("inProgress"))">
+            In Progress
+        </MudChip>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <MudText Typo="Typo.subtitle2" Class="mr-2 align-self-center">Priority:</MudText>
+        @foreach (string p in new[] { "Critical", "High", "Medium", "Low" })
+        {
+            <MudChip T="string"
+                     Color="@(priorityFilter == p ? GetPriorityColor(p) : Color.Default)"
+                     Variant="@(priorityFilter == p ? Variant.Filled : Variant.Outlined)"
+                     Size="Size.Small"
+                     OnClick="@(() => FilterByPriority(p))">
+                @p
+            </MudChip>
+        }
+        @if (priorityFilter is not null)
+        {
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Text"
+                     OnClick="@(() => FilterByPriority(null))">
+                Clear
+            </MudChip>
+        }
+    </div>
+</MudPaper>
+
+@if (loading)
+{
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="400px" />
+}
+else if (error is not null)
+{
+    <MudAlert Severity="Severity.Error">Unable to load todos: @error</MudAlert>
+}
+else if (todos.Count == 0)
+{
+    <MudPaper Class="pa-6 text-center" Elevation="2">
+        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Default" />
+        <MudText Typo="Typo.h6" Class="mt-2">No todos found</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Default">
+            @if (activeFilter != "all" || priorityFilter is not null)
+            {
+                <text>Try adjusting your filters.</text>
+            }
+            else
+            {
+                <text>Create todos via the CLI or chat agent to see them here.</text>
+            }
+        </MudText>
+    </MudPaper>
+}
+else
+{
+    <MudPaper Elevation="2">
+        <MudSimpleTable Dense="true" Hover="true" Striped="true">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Due Date</th>
+                    <th>Goal</th>
+                    <th>Tags</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (TodoSummary todo in todos)
+                {
+                    <tr>
+                        <td>@todo.Title</td>
+                        <td>
+                            <MudChip T="string"
+                                     Color="@GetStatusColor(todo.Status)"
+                                     Size="Size.Small">
+                                @todo.Status
+                            </MudChip>
+                        </td>
+                        <td>
+                            <MudChip T="string"
+                                     Color="@GetPriorityColor(todo.Priority)"
+                                     Size="Size.Small"
+                                     Variant="Variant.Outlined">
+                                @todo.Priority
+                            </MudChip>
+                        </td>
+                        <td>@(todo.DueDate ?? "—")</td>
+                        <td>@(todo.GoalTitle ?? "—")</td>
+                        <td>
+                            <div class="d-flex gap-1 flex-wrap">
+                                @foreach (string tag in todo.Tags)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">
+                                        #@tag
+                                    </MudChip>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudPaper>
+    <MudText Typo="Typo.caption" Class="mt-2" Color="Color.Default">
+        Showing @todos.Count item(s)
+    </MudText>
+}
+
+@code {
+    private List<TodoSummary> todos = [];
+    private string activeFilter = "all";
+    private string? priorityFilter;
+    private bool loading = true;
+    private string? error;
+
+    protected override async Task OnInitializedAsync() =>
+        await LoadTodosAsync().ConfigureAwait(false);
+
+    private async Task ApplyFilter(string filter)
+    {
+        activeFilter = filter;
+        loading = true;
+        await LoadTodosAsync().ConfigureAwait(false);
+    }
+
+    private async Task FilterByPriority(string? priority)
+    {
+        priorityFilter = priorityFilter == priority ? null : priority;
+        loading = true;
+        await LoadTodosAsync().ConfigureAwait(false);
+    }
+
+    private async Task LoadTodosAsync()
+    {
+        try
+        {
+            string? status = activeFilter == "inProgress" ? "InProgress" : null;
+            bool? overdue = activeFilter == "overdue" ? true : null;
+            bool? dueToday = activeFilter == "dueToday" ? true : null;
+
+            todos = await Api.GetTodosAsync(status, priorityFilter, overdue, dueToday)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private static Color GetStatusColor(string status) =>
+        status switch
+        {
+            "Completed" => Color.Success,
+            "InProgress" => Color.Info,
+            "NotStarted" => Color.Default,
+            _ => Color.Default
+        };
+
+    private static Color GetPriorityColor(string priority) =>
+        priority switch
+        {
+            "Critical" => Color.Error,
+            "High" => Color.Warning,
+            "Medium" => Color.Info,
+            "Low" => Color.Default,
+            _ => Color.Default
+        };
+}

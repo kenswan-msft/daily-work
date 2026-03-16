@@ -1,0 +1,62 @@
+@using MudBlazor
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="@DailyWorkTheme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Dark">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h5" Class="ml-3" Style="color: var(--mud-palette-primary);">
+            DailyWork
+        </MudText>
+        <MudSpacer />
+        <MudText Typo="Typo.body2" Color="Color.Default">Dashboard</MudText>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent Class="pa-4">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool drawerOpen = true;
+
+    private void ToggleDrawer() => drawerOpen = !drawerOpen;
+
+    private static readonly MudTheme DailyWorkTheme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#00bcd4",
+            Secondary = "#4caf50",
+            AppbarBackground = "#1e1e2e",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#00e5ff",
+            Secondary = "#69f0ae",
+            Surface = "#1e1e2e",
+            Background = "#121218",
+            AppbarBackground = "#1e1e2e",
+            DrawerBackground = "#16161e",
+            DrawerText = "#ffffffb3",
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography
+            {
+                FontFamily = ["Inter", "Helvetica", "Arial", "sans-serif"]
+            }
+        }
+    };
+}

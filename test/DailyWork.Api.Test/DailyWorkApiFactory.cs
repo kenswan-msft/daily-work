@@ -2,11 +2,13 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using DailyWork.Agents.Conversations;
 using DailyWork.Agents.Factories;
+using DailyWork.Api.Dashboard;
 using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Azure.Cosmos;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +20,7 @@ using NSubstitute;
 
 namespace DailyWork.Api.Test;
 
-public sealed class DailyWorkApiFactory : WebApplicationFactory<Program>
+public sealed class DailyWorkApiFactory : WebApplicationFactory<GoalsReadDbContext>
 {
     private const string DatabaseNameVariable = "AGENT_CONVERSATIONS_DATABASENAME";
     private const string ContainerNameVariable = "AGENT_CONVERSATIONS_CONTAINERNAME";
@@ -26,6 +28,7 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<Program>
     private const string CosmosConnectionString = "AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+E0N8A7Cgv30VRDJIWEHLM+E==;";
     private static readonly JsonElement EmptyJson = JsonDocument.Parse("{}").RootElement.Clone();
     private readonly StubAgent stubAgent = new();
+    private readonly string dbName = Guid.NewGuid().ToString();
 
     public DailyWorkApiFactory()
     {
@@ -103,6 +106,18 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<Program>
 
             RemoveKeyedServices<AIAgent>(services, ChatAgent.AgentName);
             services.AddKeyedSingleton<AIAgent>(ChatAgent.AgentName, (_, _) => stubAgent);
+
+            // Replace GoalsReadDbContext with InMemory — remove all Aspire pool registrations
+            var goalDbDescriptors = services
+                .Where(d => d.ServiceType.ToString().Contains("GoalsReadDbContext"))
+                .ToList();
+            foreach (ServiceDescriptor descriptor in goalDbDescriptors)
+            {
+                services.Remove(descriptor);
+            }
+
+            services.AddDbContext<GoalsReadDbContext>(options =>
+                options.UseInMemoryDatabase(dbName));
 
             services.PostConfigure<HealthCheckServiceOptions>(options =>
             {
