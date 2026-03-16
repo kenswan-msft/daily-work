@@ -34,23 +34,35 @@ IResourceBuilder<ParameterResource> sqlPassword =
         secret: true,
         persist: true);
 
-IResourceBuilder<SqlServerDatabaseResource> goalsDb =
+IResourceBuilder<SqlServerServerResource> sqlServer =
     builder.AddSqlServer("dailywork-sql-server", password: sqlPassword)
         .WithLifetime(ContainerLifetime.Persistent)
-        .WithDataVolume()
-        .AddDatabase("goals-db");
+        .WithDataVolume();
+
+IResourceBuilder<SqlServerDatabaseResource> goalsDb =
+    sqlServer.AddDatabase("goals-db");
+
+IResourceBuilder<SqlServerDatabaseResource> blackjackDb =
+    sqlServer.AddDatabase("blackjack-db");
 
 IResourceBuilder<ProjectResource> goalsMcp =
     builder.AddProject<Projects.DailyWork_Mcp_Goals>("goals-mcp")
         .WithReference(goalsDb)
         .WaitFor(goalsDb);
 
+IResourceBuilder<ProjectResource> blackjackMcp =
+    builder.AddProject<Projects.DailyWork_Mcp_Blackjack>("blackjack-mcp")
+        .WithReference(blackjackDb)
+        .WaitFor(blackjackDb);
+
 builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WithReference(goalsMcp)
+    .WithReference(blackjackMcp)
     .WithReference(cosmosDatabase)
     .WithReference(agentConversationContainer)
     .WithReference(conversationMetadataContainer)
     .WaitFor(cosmosDatabase)
-    .WaitFor(goalsMcp);
+    .WaitFor(goalsMcp)
+    .WaitFor(blackjackMcp);
 
 builder.Build().Run();

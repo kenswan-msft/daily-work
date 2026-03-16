@@ -8,7 +8,8 @@ namespace DailyWork.Agents.Factories;
 public sealed class ChatAgent(
     IChatClient chatClient,
     CosmosChatMessageStore chatHistoryProvider,
-    [FromKeyedServices(AgentKeys.Goals)] AITool goalsAgentTool) : IAgentFactory
+    [FromKeyedServices(AgentKeys.Goals)] AITool goalsAgentTool,
+    [FromKeyedServices(AgentKeys.Blackjack)] AITool blackjackAgentTool) : IAgentFactory
 {
     public static string AgentName => "chat";
 
@@ -23,6 +24,10 @@ public sealed class ChatAgent(
         related to goals, todo items, tags, daily focus, or work tracking. The goals
         assistant is a domain expert that can create, update, list, and manage goals and
         todos on the user's behalf.
+
+        You have a blackjack assistant available as a tool. Delegate to it for any requests
+        related to playing blackjack, checking game balance, or viewing game history. The
+        blackjack assistant manages card games and tracks the player's balance.
         """;
 
     public AIAgent Create() =>
@@ -34,7 +39,7 @@ public sealed class ChatAgent(
                 ChatOptions = new ChatOptions
                 {
                     Instructions = Instructions,
-                    Tools = [goalsAgentTool]
+                    Tools = [goalsAgentTool, blackjackAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
             });

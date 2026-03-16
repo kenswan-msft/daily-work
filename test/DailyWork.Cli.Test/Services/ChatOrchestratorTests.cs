@@ -316,6 +316,51 @@ public class ChatOrchestratorTests
         renderer.Received(2).RenderPrompt();
     }
 
+    [Fact]
+    public async Task RunAsync_BlackjackCommand_RendersWelcomeAndEntersSubLoop()
+    {
+        renderer.RenderStreamingResponseAsync(
+                Arg.Any<IAsyncEnumerable<AgentResponseUpdate>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ChatResponseResult("Welcome to blackjack!", []));
+        inputReader.ReadInput().Returns("/blackjack", "/quit", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.Received(1).RenderBlackjackWelcome();
+        renderer.Received(1).RenderBlackjackExit();
+    }
+
+    [Fact]
+    public async Task RunAsync_BlackjackCommand_QuitReturnsToMainLoop()
+    {
+        renderer.RenderStreamingResponseAsync(
+                Arg.Any<IAsyncEnumerable<AgentResponseUpdate>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ChatResponseResult("response", []));
+        inputReader.ReadInput().Returns("/blackjack", "/quit", "hello after blackjack", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.Received(1).RenderBlackjackWelcome();
+        renderer.Received(1).RenderBlackjackExit();
+        renderer.Received(1).RenderGoodbye();
+    }
+
+    [Fact]
+    public async Task RunAsync_BlackjackCommand_DoesNotShowUnknownCommand()
+    {
+        renderer.RenderStreamingResponseAsync(
+                Arg.Any<IAsyncEnumerable<AgentResponseUpdate>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ChatResponseResult("response", []));
+        inputReader.ReadInput().Returns("/blackjack", "/quit", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.DidNotReceive().RenderSlashCommandUnknown(Arg.Any<string>());
+    }
+
 #pragma warning disable CS1998 // Async method lacks 'await' operators
     private static async IAsyncEnumerable<AgentResponseUpdate> EmptyStream()
     {

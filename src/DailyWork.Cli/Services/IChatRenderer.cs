@@ -12,6 +12,8 @@ public interface IChatRenderer
     void RenderError(string message);
     void RenderResponseDivider();
     void RenderSlashCommandUnknown(string command);
+    void RenderBlackjackWelcome();
+    void RenderBlackjackExit();
     void RenderConversationHistory(IReadOnlyList<ConversationMessage> messages);
     void RenderConversationResumed(string title);
     void RenderToolCalls(IReadOnlyList<string> toolCallOutputs);

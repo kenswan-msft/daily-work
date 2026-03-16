@@ -22,6 +22,8 @@ builder.Services
     .AddRequestScopedAGUIAgent()
     .AddMcpClient(McpClientKeys.Goals, builder.Configuration)
     .AddAgentFactoryAsTool<GoalsAgent>(AgentKeys.Goals)
+    .AddMcpClient(McpClientKeys.Blackjack, builder.Configuration)
+    .AddAgentFactoryAsTool<BlackjackAgent>(AgentKeys.Blackjack)
     .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();

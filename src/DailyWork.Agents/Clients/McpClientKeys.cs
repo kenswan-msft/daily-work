@@ -8,4 +8,6 @@ namespace DailyWork.Agents.Clients;
 public static class McpClientKeys
 {
     public const string Goals = "goals-mcp";
+
+    public const string Blackjack = "blackjack-mcp";
 }

@@ -10,4 +10,6 @@ public static class AgentKeys
     public const string Chat = "chat";
 
     public const string Goals = "goals";
+
+    public const string Blackjack = "blackjack";
 }

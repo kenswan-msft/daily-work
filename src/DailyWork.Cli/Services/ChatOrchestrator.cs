@@ -91,6 +91,8 @@ public class ChatOrchestrator(
         {
             "/history" => await HandleHistoryCommandAsync(messages, cancellationToken)
                 .ConfigureAwait(false),
+            "/blackjack" => await HandleBlackjackCommandAsync(messages, cancellationToken)
+                .ConfigureAwait(false),
             _ => false,
         };
     }
@@ -125,6 +127,80 @@ public class ChatOrchestrator(
         }
 
         renderer.RenderConversationResumed(selected.Title);
+
+        return true;
+    }
+
+    internal virtual async Task<bool> HandleBlackjackCommandAsync(
+        List<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        renderer.RenderBlackjackWelcome();
+
+        // Send an initial message to kick off the game
+        const string initialMessage =
+            "The user wants to play blackjack. Show them their current balance and ask how much they'd like to bet to start a game.";
+        messages.Add(new ChatMessage(ChatRole.User, initialMessage));
+
+        IAsyncEnumerable<AgentResponseUpdate> initialStream =
+            agent.StreamResponseAsync(messages, cancellationToken);
+
+        ChatResponseResult initialResult = await renderer
+            .RenderStreamingResponseAsync(initialStream, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (initialResult.ToolCallOutputs.Count > 0)
+        {
+            renderer.RenderToolCalls(initialResult.ToolCallOutputs);
+        }
+
+        if (!string.IsNullOrWhiteSpace(initialResult.ResponseText))
+        {
+            renderer.RenderResponseDivider();
+            messages.Add(new ChatMessage(ChatRole.Assistant, initialResult.ResponseText));
+        }
+
+        // Enter the blackjack sub-loop
+        while (true)
+        {
+            renderer.RenderPrompt();
+            string? input = inputReader.ReadInput();
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                renderer.RenderEmptyInputWarning();
+                continue;
+            }
+
+            if (input.Equals("/quit", StringComparison.OrdinalIgnoreCase) ||
+                input is ":q" or "quit" or "exit")
+            {
+                renderer.RenderBlackjackExit();
+                break;
+            }
+
+            // Contextualize the message for the blackjack agent
+            string blackjackMessage = $"[Blackjack game] The player says: {input}";
+            messages.Add(new ChatMessage(ChatRole.User, blackjackMessage));
+
+            IAsyncEnumerable<AgentResponseUpdate> stream =
+                agent.StreamResponseAsync(messages, cancellationToken);
+
+            ChatResponseResult result = await renderer
+                .RenderStreamingResponseAsync(stream, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (result.ToolCallOutputs.Count > 0)
+            {
+                renderer.RenderToolCalls(result.ToolCallOutputs);
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.ResponseText))
+            {
+                renderer.RenderResponseDivider();
+                messages.Add(new ChatMessage(ChatRole.Assistant, result.ResponseText));
+            }
+        }
 
         return true;
     }

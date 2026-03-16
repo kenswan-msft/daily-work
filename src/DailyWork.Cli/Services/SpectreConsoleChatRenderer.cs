@@ -54,7 +54,38 @@ public class SpectreConsoleChatRenderer : IChatRenderer
         AnsiConsole.MarkupLine($"[red]An error occurred: {Markup.Escape(message)}[/]");
 
     public void RenderSlashCommandUnknown(string command) =>
-        AnsiConsole.MarkupLine($"[yellow]Unknown command: {Markup.Escape(command)}. Type [cyan]/history[/] to browse conversations.[/]");
+        AnsiConsole.MarkupLine($"[yellow]Unknown command: {Markup.Escape(command)}. Type [cyan]/history[/] or [cyan]/blackjack[/] for available commands.[/]");
+
+    public void RenderBlackjackWelcome()
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(
+            new Rule("[green]♠ ♥ Blackjack ♦ ♣[/]")
+                .RuleStyle(Style.Parse("green"))
+                .Centered());
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(
+            new Panel(
+                    new Markup(
+                        "[dim]Welcome to the Blackjack table!\n" +
+                        "Chat naturally to play — ask to deal, hit, stand, or check your balance.\n" +
+                        "Type [cyan]/quit[/] to leave the table and return to chat.[/]"))
+                .Border(BoxBorder.Rounded)
+                .BorderStyle(Style.Parse("green dim"))
+                .Header("[green]♠ Dealer[/]")
+                .Expand());
+        AnsiConsole.WriteLine();
+    }
+
+    public void RenderBlackjackExit()
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(
+            new Rule("[dim]Leaving the Blackjack table[/]")
+                .RuleStyle(Style.Parse("dim"))
+                .Centered());
+        AnsiConsole.WriteLine();
+    }
 
     public void RenderConversationHistory(IReadOnlyList<ConversationMessage> messages)
     {
