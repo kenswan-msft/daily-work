@@ -18,9 +18,7 @@ builder.Services.AddAGUI();
 
 builder.Services
     .AddAgenticChatClient()
-    .AddConversationTitleGenerator()
-    .AddConversationService()
-    .AddCosmosChatHistoryProvider()
+    .AddConversationServices()
     .AddRequestScopedAGUIAgent()
     .AddMcpClient(McpClientKeys.Goals, builder.Configuration)
     .AddAgentFactoryAsTool<GoalsAgent>(AgentKeys.Goals)

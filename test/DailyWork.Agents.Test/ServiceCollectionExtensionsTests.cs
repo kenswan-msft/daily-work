@@ -49,7 +49,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddCosmosChatHistoryProvider_WithMissingEnvVars_ThrowsOnResolve()
+    public void AddConversationServices_WithMissingEnvVars_ThrowsOnResolve()
     {
         const string DatabaseNameVariable = "AGENT_CONVERSATIONS_DATABASENAME";
         const string ContainerNameVariable = "AGENT_CONVERSATIONS_CONTAINERNAME";
@@ -68,7 +68,8 @@ public class ServiceCollectionExtensionsTests
             ServiceCollection services = new();
             services.AddSingleton(cosmosClient);
             services.AddSingleton(loggerFactory);
-            services.AddCosmosChatHistoryProvider();
+            services.AddSingleton(Substitute.For<IChatClient>());
+            services.AddConversationServices();
 
             using ServiceProvider provider = services.BuildServiceProvider();
 
