@@ -45,6 +45,9 @@ IResourceBuilder<SqlServerDatabaseResource> goalsDb =
 IResourceBuilder<SqlServerDatabaseResource> blackjackDb =
     sqlServer.AddDatabase("blackjack-db");
 
+IResourceBuilder<SqlServerDatabaseResource> knowledgeDb =
+    sqlServer.AddDatabase("knowledge-db");
+
 IResourceBuilder<ProjectResource> goalsMcp =
     builder.AddProject<Projects.DailyWork_Mcp_Goals>("goals-mcp")
         .WithReference(goalsDb)
@@ -55,20 +58,29 @@ IResourceBuilder<ProjectResource> blackjackMcp =
         .WithReference(blackjackDb)
         .WaitFor(blackjackDb);
 
+IResourceBuilder<ProjectResource> knowledgeMcp =
+    builder.AddProject<Projects.DailyWork_Mcp_Knowledge>("knowledge-mcp")
+        .WithReference(knowledgeDb)
+        .WaitFor(knowledgeDb);
+
 IResourceBuilder<ProjectResource> api =
     builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WithReference(goalsDb)
+    .WithReference(knowledgeDb)
     .WithReference(goalsMcp)
     .WithReference(blackjackMcp)
+    .WithReference(knowledgeMcp)
     .WithReference(cosmosDatabase)
     .WithReference(agentConversationContainer)
     .WithReference(conversationMetadataContainer)
     .WaitFor(cosmosDatabase)
     .WaitFor(goalsMcp)
-    .WaitFor(blackjackMcp);
+    .WaitFor(blackjackMcp)
+    .WaitFor(knowledgeMcp);
 
 builder.AddProject<Projects.DailyWork_Web>("dailywork-web")
     .WithReference(api)
-    .WithExternalHttpEndpoints();
+    .WithExternalHttpEndpoints()
+    .WaitFor(api);
 
 builder.Build().Run();

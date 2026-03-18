@@ -1,0 +1,237 @@
+@page "/knowledge"
+@using DailyWork.Web.Models
+@using DailyWork.Web.Services
+@using MudBlazor
+@inject DashboardApiClient Api
+
+<PageTitle>Knowledge Base</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">📚 Knowledge Base</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="8">
+        <MudTextField @bind-Value="searchQuery"
+                      Placeholder="Search links, snippets, and notes..."
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      DebounceInterval="400"
+                      OnDebounceIntervalElapsed="OnSearchAsync"
+                      Class="mb-3" />
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <MudSelect T="string" Value="selectedType" Label="Filter by Type"
+                   Variant="Variant.Outlined" Class="mb-3" Clearable="true"
+                   ValueChanged="OnFilterChangedAsync">
+            <MudSelectItem Value="@("Link")">🔗 Links</MudSelectItem>
+            <MudSelectItem Value="@("Snippet")">📝 Snippets</MudSelectItem>
+            <MudSelectItem Value="@("Note")">📓 Notes</MudSelectItem>
+        </MudSelect>
+    </MudItem>
+</MudGrid>
+
+@if (tags.Count > 0)
+{
+    <MudPaper Class="pa-3 mb-4" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Tags</MudText>
+        <MudChipSet T="string" SelectionMode="SelectionMode.SingleSelection"
+                    SelectedValue="selectedTag"
+                    SelectedValueChanged="OnTagSelectedAsync">
+            @foreach (KnowledgeTagSummary tag in tags)
+            {
+                <MudChip T="string" Value="@tag.Name" Variant="Variant.Outlined"
+                         Color="Color.Primary" Size="Size.Small">
+                    @tag.Name (@tag.ItemCount)
+                </MudChip>
+            }
+        </MudChipSet>
+    </MudPaper>
+}
+
+@if (loading)
+{
+    <MudGrid>
+        @for (int i = 0; i < 6; i++)
+        {
+            <MudItem xs="12" md="6">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="140px" />
+            </MudItem>
+        }
+    </MudGrid>
+}
+else if (error is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">
+        Unable to load knowledge base: @error
+    </MudAlert>
+}
+else if (items.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+        @if (!string.IsNullOrWhiteSpace(searchQuery) || selectedTag is not null || selectedType is not null)
+        {
+            <text>No items match your search criteria. Try adjusting your filters.</text>
+        }
+        else
+        {
+            <text>Your knowledge base is empty. Use the CLI chat or /knowledge command to start saving links, snippets, and notes.</text>
+        }
+    </MudAlert>
+}
+else
+{
+    <MudGrid>
+        @foreach (KnowledgeItemSummary item in items)
+        {
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2" Class="mb-2">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudIcon Icon="@GetTypeIcon(item.Type)"
+                                     Color="@GetTypeColor(item.Type)" />
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.subtitle1">@item.Title</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @item.Type
+                                @if (item.Language is not null)
+                                {
+                                    <text> · @item.Language</text>
+                                }
+                                @if (item.Category is not null)
+                                {
+                                    <text> · @item.Category</text>
+                                }
+                                · @item.CreatedAt.ToString("MMM d, yyyy")
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (item.Description is not null)
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-2">@item.Description</MudText>
+                        }
+                        @if (item.Url is not null)
+                        {
+                            <MudLink Href="@item.Url" Target="_blank" Typo="Typo.body2"
+                                     Color="Color.Primary" Class="mb-2">
+                                @TruncateUrl(item.Url)
+                                <MudIcon Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" />
+                            </MudLink>
+                        }
+                        @if (item.ContentPreview is not null)
+                        {
+                            <MudPaper Class="pa-2 mt-2" Elevation="0"
+                                      Style="background-color: var(--mud-palette-background-grey); border-radius: 4px;">
+                                <MudText Typo="Typo.body2" Style="font-family: monospace; white-space: pre-wrap; font-size: 0.85rem;">@item.ContentPreview</MudText>
+                            </MudPaper>
+                        }
+                        @if (item.Tags.Length > 0)
+                        {
+                            <div class="mt-2">
+                                @foreach (string tag in item.Tags)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text"
+                                             Color="Color.Default">
+                                        @tag
+                                    </MudChip>
+                                }
+                            </div>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<KnowledgeItemSummary> items = [];
+    private List<KnowledgeTagSummary> tags = [];
+    private bool loading = true;
+    private string? error;
+    private string? searchQuery;
+    private string? selectedType;
+    private string? selectedTag;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Task<List<KnowledgeItemSummary>> itemsTask = Api.GetKnowledgeItemsAsync();
+            Task<List<KnowledgeTagSummary>> tagsTask = Api.GetKnowledgeTagsAsync();
+
+            await Task.WhenAll(itemsTask, tagsTask).ConfigureAwait(false);
+
+            items = await itemsTask.ConfigureAwait(false);
+            tags = await tagsTask.ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task OnSearchAsync()
+    {
+        await LoadItemsAsync().ConfigureAwait(false);
+    }
+
+    private async Task OnFilterChangedAsync(string? value)
+    {
+        selectedType = value;
+        await LoadItemsAsync().ConfigureAwait(false);
+    }
+
+    private async Task OnTagSelectedAsync(string? tagName)
+    {
+        selectedTag = tagName;
+        await LoadItemsAsync().ConfigureAwait(false);
+    }
+
+    private async Task LoadItemsAsync()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                items = await Api.SearchKnowledgeAsync(searchQuery, selectedType, selectedTag)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                items = await Api.GetKnowledgeItemsAsync(selectedType).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private static string GetTypeIcon(string type) =>
+        type switch
+        {
+            "Link" => Icons.Material.Filled.Link,
+            "Snippet" => Icons.Material.Filled.Code,
+            "Note" => Icons.Material.Filled.StickyNote2,
+            _ => Icons.Material.Filled.Article
+        };
+
+    private static Color GetTypeColor(string type) =>
+        type switch
+        {
+            "Link" => Color.Primary,
+            "Snippet" => Color.Success,
+            "Note" => Color.Warning,
+            _ => Color.Default
+        };
+
+    private static string TruncateUrl(string url) =>
+        url.Length > 60 ? url[..57] + "..." : url;
+}

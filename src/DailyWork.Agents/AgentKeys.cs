@@ -12,4 +12,6 @@ public static class AgentKeys
     public const string Goals = "goals";
 
     public const string Blackjack = "blackjack";
+
+    public const string Knowledge = "knowledge";
 }

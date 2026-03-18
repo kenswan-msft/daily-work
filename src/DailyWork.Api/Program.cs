@@ -14,6 +14,7 @@ builder.AddAzureCosmosClient("conversations-db", configureClientOptions: options
     options.UseSystemTextJsonSerializerWithOptions = JsonSerializerOptions.Default;
 });
 builder.AddSqlServerDbContext<GoalsReadDbContext>("goals-db");
+builder.AddSqlServerDbContext<KnowledgeReadDbContext>("knowledge-db");
 
 builder.Services.AddOpenApi();
 builder.Services.AddAGUI();
@@ -26,6 +27,8 @@ builder.Services
     .AddAgentFactoryAsTool<GoalsAgent>(AgentKeys.Goals)
     .AddMcpClient(McpClientKeys.Blackjack, builder.Configuration)
     .AddAgentFactoryAsTool<BlackjackAgent>(AgentKeys.Blackjack)
+    .AddMcpClient(McpClientKeys.Knowledge, builder.Configuration)
+    .AddAgentFactoryAsTool<KnowledgeAgent>(AgentKeys.Knowledge)
     .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();
@@ -37,6 +40,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapDefaultEndpoints();
 app.MapDashboardEndpoints();
+app.MapKnowledgeDashboardEndpoints();
 
 app.MapAGUI("/api/chat", app.Services.GetRequiredKeyedService<RequestScopedAGUIAgent>(AgentKeys.Chat));
 

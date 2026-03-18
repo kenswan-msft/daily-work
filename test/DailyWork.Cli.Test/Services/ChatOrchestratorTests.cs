@@ -361,6 +361,51 @@ public class ChatOrchestratorTests
         renderer.DidNotReceive().RenderSlashCommandUnknown(Arg.Any<string>());
     }
 
+    [Fact]
+    public async Task RunAsync_KnowledgeCommand_RendersWelcomeAndEntersSubLoop()
+    {
+        renderer.RenderStreamingResponseAsync(
+                Arg.Any<IAsyncEnumerable<AgentResponseUpdate>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ChatResponseResult("Welcome to your knowledge base!", []));
+        inputReader.ReadInput().Returns("/knowledge", "/quit", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.Received(1).RenderKnowledgeWelcome();
+        renderer.Received(1).RenderKnowledgeExit();
+    }
+
+    [Fact]
+    public async Task RunAsync_KnowledgeCommand_QuitReturnsToMainLoop()
+    {
+        renderer.RenderStreamingResponseAsync(
+                Arg.Any<IAsyncEnumerable<AgentResponseUpdate>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ChatResponseResult("response", []));
+        inputReader.ReadInput().Returns("/knowledge", "/quit", "hello after knowledge", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.Received(1).RenderKnowledgeWelcome();
+        renderer.Received(1).RenderKnowledgeExit();
+        renderer.Received(1).RenderGoodbye();
+    }
+
+    [Fact]
+    public async Task RunAsync_KnowledgeCommand_DoesNotShowUnknownCommand()
+    {
+        renderer.RenderStreamingResponseAsync(
+                Arg.Any<IAsyncEnumerable<AgentResponseUpdate>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ChatResponseResult("response", []));
+        inputReader.ReadInput().Returns("/knowledge", "/quit", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.DidNotReceive().RenderSlashCommandUnknown(Arg.Any<string>());
+    }
+
 #pragma warning disable CS1998 // Async method lacks 'await' operators
     private static async IAsyncEnumerable<AgentResponseUpdate> EmptyStream()
     {

@@ -79,4 +79,58 @@ public class DashboardApiClient(HttpClient httpClient)
         return await httpClient.GetFromJsonAsync<List<DailyFocusItem>>(url, cancellationToken)
             .ConfigureAwait(false) ?? [];
     }
+
+    public virtual async Task<List<KnowledgeItemSummary>> GetKnowledgeItemsAsync(
+        string? type = null,
+        int? limit = null,
+        CancellationToken cancellationToken = default)
+    {
+        List<string> queryParams = [];
+        if (type is not null)
+        {
+            queryParams.Add($"type={type}");
+        }
+
+        if (limit.HasValue)
+        {
+            queryParams.Add($"limit={limit.Value}");
+        }
+
+        string url = "/api/dashboard/knowledge";
+        if (queryParams.Count > 0)
+        {
+            url += "?" + string.Join("&", queryParams);
+        }
+
+        return await httpClient.GetFromJsonAsync<List<KnowledgeItemSummary>>(url, cancellationToken)
+            .ConfigureAwait(false) ?? [];
+    }
+
+    public virtual async Task<List<KnowledgeItemSummary>> SearchKnowledgeAsync(
+        string query,
+        string? type = null,
+        string? tag = null,
+        CancellationToken cancellationToken = default)
+    {
+        List<string> queryParams = [$"q={Uri.EscapeDataString(query)}"];
+        if (type is not null)
+        {
+            queryParams.Add($"type={type}");
+        }
+
+        if (tag is not null)
+        {
+            queryParams.Add($"tag={Uri.EscapeDataString(tag)}");
+        }
+
+        string url = "/api/dashboard/knowledge/search?" + string.Join("&", queryParams);
+
+        return await httpClient.GetFromJsonAsync<List<KnowledgeItemSummary>>(url, cancellationToken)
+            .ConfigureAwait(false) ?? [];
+    }
+
+    public virtual async Task<List<KnowledgeTagSummary>> GetKnowledgeTagsAsync(
+        CancellationToken cancellationToken = default) =>
+        await httpClient.GetFromJsonAsync<List<KnowledgeTagSummary>>(
+            "/api/dashboard/knowledge/tags", cancellationToken).ConfigureAwait(false) ?? [];
 }

@@ -29,6 +29,7 @@ public class SpectreConsoleChatRenderer : IChatRenderer
                     new Markup(
                         "[dim]Type your message to start a conversation.\n" +
                         "Type [cyan]/history[/] to browse and resume previous conversations.\n" +
+                        "Type [cyan]/knowledge[/] to manage your knowledge base.\n" +
                         "Type [cyan]:q[/], [cyan]quit[/], or [cyan]exit[/] to leave.[/]"))
                 .Border(BoxBorder.Rounded)
                 .BorderStyle(Style.Parse("grey"))
@@ -54,7 +55,7 @@ public class SpectreConsoleChatRenderer : IChatRenderer
         AnsiConsole.MarkupLine($"[red]An error occurred: {Markup.Escape(message)}[/]");
 
     public void RenderSlashCommandUnknown(string command) =>
-        AnsiConsole.MarkupLine($"[yellow]Unknown command: {Markup.Escape(command)}. Type [cyan]/history[/] or [cyan]/blackjack[/] for available commands.[/]");
+        AnsiConsole.MarkupLine($"[yellow]Unknown command: {Markup.Escape(command)}. Type [cyan]/history[/], [cyan]/blackjack[/], or [cyan]/knowledge[/] for available commands.[/]");
 
     public void RenderBlackjackWelcome()
     {
@@ -82,6 +83,37 @@ public class SpectreConsoleChatRenderer : IChatRenderer
         AnsiConsole.WriteLine();
         AnsiConsole.Write(
             new Rule("[dim]Leaving the Blackjack table[/]")
+                .RuleStyle(Style.Parse("dim"))
+                .Centered());
+        AnsiConsole.WriteLine();
+    }
+
+    public void RenderKnowledgeWelcome()
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(
+            new Rule("[blue]📚 Knowledge Base[/]")
+                .RuleStyle(Style.Parse("blue"))
+                .Centered());
+        AnsiConsole.Write(
+            new Panel(
+                    new Markup(
+                        "[dim]Welcome to your Knowledge Base!\n" +
+                        "Save and search links, code snippets, and notes.\n" +
+                        "Chat naturally — ask to save, search, or browse by tag.\n" +
+                        "Type [cyan]/quit[/] to return to chat.[/]"))
+                .Border(BoxBorder.Rounded)
+                .BorderStyle(Style.Parse("blue dim"))
+                .Header("[blue]📚 Knowledge[/]")
+                .Expand());
+        AnsiConsole.WriteLine();
+    }
+
+    public void RenderKnowledgeExit()
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(
+            new Rule("[dim]Leaving the Knowledge Base[/]")
                 .RuleStyle(Style.Parse("dim"))
                 .Centered());
         AnsiConsole.WriteLine();

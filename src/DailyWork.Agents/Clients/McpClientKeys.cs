@@ -10,4 +10,6 @@ public static class McpClientKeys
     public const string Goals = "goals-mcp";
 
     public const string Blackjack = "blackjack-mcp";
+
+    public const string Knowledge = "knowledge-mcp";
 }

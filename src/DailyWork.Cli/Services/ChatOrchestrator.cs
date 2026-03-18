@@ -93,6 +93,8 @@ public class ChatOrchestrator(
                 .ConfigureAwait(false),
             "/blackjack" => await HandleBlackjackCommandAsync(messages, cancellationToken)
                 .ConfigureAwait(false),
+            "/knowledge" => await HandleKnowledgeCommandAsync(messages, cancellationToken)
+                .ConfigureAwait(false),
             _ => false,
         };
     }
@@ -182,6 +184,81 @@ public class ChatOrchestrator(
             // Contextualize the message for the blackjack agent
             string blackjackMessage = $"[Blackjack game] The player says: {input}";
             messages.Add(new ChatMessage(ChatRole.User, blackjackMessage));
+
+            IAsyncEnumerable<AgentResponseUpdate> stream =
+                agent.StreamResponseAsync(messages, cancellationToken);
+
+            ChatResponseResult result = await renderer
+                .RenderStreamingResponseAsync(stream, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (result.ToolCallOutputs.Count > 0)
+            {
+                renderer.RenderToolCalls(result.ToolCallOutputs);
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.ResponseText))
+            {
+                renderer.RenderResponseDivider();
+                messages.Add(new ChatMessage(ChatRole.Assistant, result.ResponseText));
+            }
+        }
+
+        return true;
+    }
+
+    internal virtual async Task<bool> HandleKnowledgeCommandAsync(
+        List<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        renderer.RenderKnowledgeWelcome();
+
+        const string initialMessage =
+            "The user wants to manage their knowledge base. Show them a brief summary: " +
+            "how many items they have saved (use ListRecent with limit 1 to check), " +
+            "and ask what they'd like to do — save a link, snippet, or note, search for something, " +
+            "or browse by tag.";
+        messages.Add(new ChatMessage(ChatRole.User, initialMessage));
+
+        IAsyncEnumerable<AgentResponseUpdate> initialStream =
+            agent.StreamResponseAsync(messages, cancellationToken);
+
+        ChatResponseResult initialResult = await renderer
+            .RenderStreamingResponseAsync(initialStream, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (initialResult.ToolCallOutputs.Count > 0)
+        {
+            renderer.RenderToolCalls(initialResult.ToolCallOutputs);
+        }
+
+        if (!string.IsNullOrWhiteSpace(initialResult.ResponseText))
+        {
+            renderer.RenderResponseDivider();
+            messages.Add(new ChatMessage(ChatRole.Assistant, initialResult.ResponseText));
+        }
+
+        // Enter the knowledge sub-loop
+        while (true)
+        {
+            renderer.RenderPrompt();
+            string? input = inputReader.ReadInput();
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                renderer.RenderEmptyInputWarning();
+                continue;
+            }
+
+            if (input.Equals("/quit", StringComparison.OrdinalIgnoreCase) ||
+                input is ":q" or "quit" or "exit")
+            {
+                renderer.RenderKnowledgeExit();
+                break;
+            }
+
+            string knowledgeMessage = $"[Knowledge base] The user says: {input}";
+            messages.Add(new ChatMessage(ChatRole.User, knowledgeMessage));
 
             IAsyncEnumerable<AgentResponseUpdate> stream =
                 agent.StreamResponseAsync(messages, cancellationToken);

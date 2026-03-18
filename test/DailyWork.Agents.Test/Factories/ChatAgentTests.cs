@@ -31,7 +31,8 @@ public class ChatAgentTests
             cosmosClient, "database", "container", logger, conversationService, titleGenerator);
         AITool goalsAgentTool = Substitute.For<AITool>();
         AITool blackjackAgentTool = Substitute.For<AITool>();
-        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool);
+        AITool knowledgeAgentTool = Substitute.For<AITool>();
+        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool);
 
         AIAgent agent = sut.Create();
 
