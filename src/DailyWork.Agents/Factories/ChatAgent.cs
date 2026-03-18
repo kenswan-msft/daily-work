@@ -10,7 +10,8 @@ public sealed class ChatAgent(
     CosmosChatMessageStore chatHistoryProvider,
     [FromKeyedServices(AgentKeys.Goals)] AITool goalsAgentTool,
     [FromKeyedServices(AgentKeys.Blackjack)] AITool blackjackAgentTool,
-    [FromKeyedServices(AgentKeys.Knowledge)] AITool knowledgeAgentTool) : IAgentFactory
+    [FromKeyedServices(AgentKeys.Knowledge)] AITool knowledgeAgentTool,
+    [FromKeyedServices(AgentKeys.MicrosoftDocs)] AITool microsoftDocsAgentTool) : IAgentFactory
 {
     public static string AgentName => "chat";
 
@@ -34,6 +35,11 @@ public sealed class ChatAgent(
         related to saving links, code snippets, or notes, searching the knowledge base,
         browsing by tag, or managing saved knowledge items. The knowledge assistant helps
         the user build and query their personal knowledge base.
+
+        You have a Microsoft documentation assistant available as a tool. Delegate to it for
+        any requests related to searching or retrieving official Microsoft documentation,
+        finding code samples for Microsoft products, or looking up API references for Azure,
+        .NET, Visual Studio, Microsoft 365, and other Microsoft technologies.
         """;
 
     public AIAgent Create() =>
@@ -45,7 +51,7 @@ public sealed class ChatAgent(
                 ChatOptions = new ChatOptions
                 {
                     Instructions = Instructions,
-                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool]
+                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
             });

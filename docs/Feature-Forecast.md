@@ -11,6 +11,7 @@ Feature tracking and roadmap planning for DailyWork.
 - **AI Chat** — Conversational assistant via AGUI streaming (`/api/chat`)
 - **`/history`** — Browse and resume previous conversations with metadata
 - **`/blackjack`** — Dedicated blackjack game mode with natural language dealer agent
+- **`/knowledge`** — Knowledge base management mode for saving and searching links, snippets, and notes
 
 ### Goals & Todos
 
@@ -26,40 +27,30 @@ Feature tracking and roadmap planning for DailyWork.
 - **Balance Tracking** — Starting $200, 3:2 blackjack payout, 1:1 regular wins
 - **Game History** — Full hand history with outcomes and balance changes
 
+### Knowledge & Links Manager
+
+- **Knowledge MCP Server** — Full CRUD for links, code snippets, and notes with tags and categories
+- **Search** — LIKE-based search across titles, descriptions, content, URLs, and tags
+- **ListByTag / ListRecent** — Browse items by tag or recency, with optional type filtering
+- **KnowledgeAgent** — AI agent for natural language knowledge management (delegated from ChatAgent)
+
 ### Web Dashboard
 
 - **Dashboard** — Overview stats, goal donut chart, daily focus list, overdue alerts
 - **Goals Page** — Filterable goal cards with detail view and progress bars
 - **Todos Page** — Data grid with status/priority filtering and goal associations
+- **Knowledge Page** — Search bar, tag cloud, type filter, and card grid for links/snippets/notes
 
 ### Infrastructure
 
 - **.NET Aspire AppHost** — Full orchestration with service discovery
-- **SQL Server** — `goals-db` and `blackjack-db` with EF Core migrations
+- **SQL Server** — `goals-db`, `blackjack-db`, and `knowledge-db` with EF Core migrations
 - **Azure Cosmos DB** — Conversation and metadata storage
 - **MCP Protocol** — HTTP transport servers with auto-discovered tools
 
 ---
 
 ## 🔜 Planned Features
-
-### Knowledge & Links Manager
-
-> A personal knowledge base for storing helpful links, code snippets, articles, and notes — searchable and taggable.
-
-- [ ] `DailyWork.Mcp.Knowledge` — MCP server with SQL Server storage
-  - [ ] **SaveLink** — Store URL with title, description, tags, and category
-  - [ ] **SaveSnippet** — Store code snippets with language, description, and tags
-  - [ ] **SaveNote** — Free-form notes with markdown support
-  - [ ] **Search** — Full-text search across all saved items
-  - [ ] **ListByTag** — Browse items by tag
-  - [ ] **ListRecent** — Recently saved items
-- [ ] `KnowledgeAgent` — AI agent for natural language knowledge management
-  - "Save this link about Aspire health checks"
-  - "Find my notes about EF Core migrations"
-  - "What links did I save about MudBlazor?"
-- [ ] CLI `/links` or `/knowledge` slash command
-- [ ] Web dashboard Knowledge page with search and tag cloud
 
 ### Reminders & Notifications
 

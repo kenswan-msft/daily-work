@@ -29,6 +29,8 @@ builder.Services
     .AddAgentFactoryAsTool<BlackjackAgent>(AgentKeys.Blackjack)
     .AddMcpClient(McpClientKeys.Knowledge, builder.Configuration)
     .AddAgentFactoryAsTool<KnowledgeAgent>(AgentKeys.Knowledge)
+    .AddMcpClient(McpClientKeys.MicrosoftDocs, builder.Configuration)
+    .AddAgentFactoryAsTool<MicrosoftDocsAgent>(AgentKeys.MicrosoftDocs)
     .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();

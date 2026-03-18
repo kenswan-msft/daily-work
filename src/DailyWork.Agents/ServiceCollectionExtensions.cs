@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 
 namespace DailyWork.Agents;
 
@@ -154,6 +155,11 @@ public static class ServiceCollectionExtensions
         ///   <item>Aspire service binding: <c>services:{key}:https:0</c> or <c>services:{key}:http:0</c></item>
         ///   <item>Explicit <see cref="McpServerConnectionOptions.Endpoint"/> from configuration</item>
         /// </list>
+        /// For Aspire-managed (local) servers, the <see cref="HttpClient"/> is obtained
+        /// from <see cref="IHttpClientFactory"/> so that service discovery resolves the
+        /// endpoint. For external servers (explicit endpoint), the transport creates its
+        /// own <see cref="HttpClient"/> to avoid interference from the standard resilience
+        /// handler configured by Aspire service defaults.
         /// </summary>
         public IServiceCollection AddMcpClient(string key, IConfiguration configuration)
         {
@@ -170,21 +176,54 @@ public static class ServiceCollectionExtensions
                 key,
                 (serviceProvider, _) =>
                 {
-                    IHttpClientFactory httpClientFactory =
-                        serviceProvider.GetRequiredService<IHttpClientFactory>();
+                    ILoggerFactory loggerFactory =
+                        serviceProvider.GetRequiredService<ILoggerFactory>();
 
-                    string endpointUrl = ResolveEndpoint(key, options.Endpoint, configuration);
+                    ILogger logger = loggerFactory.CreateLogger($"McpClient.{key}");
 
-                    var transport = new HttpClientTransport(
-                        new HttpClientTransportOptions
+                    EndpointResolution resolution =
+                        ResolveEndpoint(key, options.Endpoint, configuration);
+
+                    var transportOptions = new HttpClientTransportOptions
+                    {
+                        Endpoint = new Uri(resolution.Url),
+                        Name = options.Name,
+                        TransportMode = resolution.IsExternal
+                            ? HttpTransportMode.StreamableHttp
+                            : HttpTransportMode.AutoDetect
+                    };
+
+                    HttpClientTransport transport = resolution.IsExternal
+                        ? new HttpClientTransport(transportOptions, loggerFactory)
+                        : new HttpClientTransport(
+                            transportOptions,
+                            serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(),
+                            loggerFactory,
+                            false);
+
+                    // Subscribe to tools/listChanged notifications so the cached
+                    // tool list stays in sync with the remote server.
+                    var clientOptions = new McpClientOptions
+                    {
+                        Handlers = new McpClientHandlers
                         {
-                            Endpoint = new Uri(endpointUrl),
-                            Name = options.Name
-                        },
-                        httpClientFactory.CreateClient());
+                            NotificationHandlers =
+                            [
+                                new(NotificationMethods.ToolListChangedNotification, (notification, _) =>
+                                {
+                                    logger.LogInformation(
+                                        "MCP server '{Key}' sent tools/listChanged — " +
+                                        "tool definitions may have been updated.",
+                                        key);
+
+                                    return ValueTask.CompletedTask;
+                                })
+                            ]
+                        }
+                    };
 
                     McpClient mcpClient = McpClient
-                        .CreateAsync(transport)
+                        .CreateAsync(transport, clientOptions, loggerFactory)
                         .GetAwaiter()
                         .GetResult();
 
@@ -238,9 +277,11 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Resolves the MCP endpoint URL using the Aspire service binding configuration
-    /// with a fallback to an explicit endpoint value.
+    /// with a fallback to an explicit endpoint value. Returns whether the endpoint
+    /// is external (explicit) vs Aspire-managed so callers can choose the appropriate
+    /// <see cref="HttpClient"/> strategy.
     /// </summary>
-    private static string ResolveEndpoint(
+    private static EndpointResolution ResolveEndpoint(
         string key,
         string? explicitEndpoint,
         IConfiguration configuration)
@@ -251,12 +292,12 @@ public static class ServiceCollectionExtensions
 
         if (aspireEndpoint is not null)
         {
-            return aspireEndpoint;
+            return new EndpointResolution(aspireEndpoint, IsExternal: false);
         }
 
         if (!string.IsNullOrWhiteSpace(explicitEndpoint))
         {
-            return explicitEndpoint;
+            return new EndpointResolution(explicitEndpoint, IsExternal: true);
         }
 
         throw new InvalidOperationException(
@@ -264,4 +305,6 @@ public static class ServiceCollectionExtensions
             $"Set the endpoint via Aspire service bindings or " +
             $"the 'Endpoint' property in the McpClients configuration section.");
     }
+
+    private sealed record EndpointResolution(string Url, bool IsExternal);
 }
