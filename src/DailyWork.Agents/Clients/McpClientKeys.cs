@@ -14,4 +14,6 @@ public static class McpClientKeys
     public const string Knowledge = "knowledge-mcp";
 
     public const string MicrosoftDocs = "microsoft-docs-mcp";
+
+    public const string FileSystem = "filesystem-mcp";
 }

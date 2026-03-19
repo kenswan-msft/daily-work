@@ -31,6 +31,8 @@ builder.Services
     .AddAgentFactoryAsTool<KnowledgeAgent>(AgentKeys.Knowledge)
     .AddMcpClient(McpClientKeys.MicrosoftDocs, builder.Configuration)
     .AddAgentFactoryAsTool<MicrosoftDocsAgent>(AgentKeys.MicrosoftDocs)
+    .AddMcpClient(McpClientKeys.FileSystem, builder.Configuration)
+    .AddAgentFactoryAsTool<FileSystemAgent>(AgentKeys.FileSystem)
     .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();

@@ -11,7 +11,8 @@ public sealed class ChatAgent(
     [FromKeyedServices(AgentKeys.Goals)] AITool goalsAgentTool,
     [FromKeyedServices(AgentKeys.Blackjack)] AITool blackjackAgentTool,
     [FromKeyedServices(AgentKeys.Knowledge)] AITool knowledgeAgentTool,
-    [FromKeyedServices(AgentKeys.MicrosoftDocs)] AITool microsoftDocsAgentTool) : IAgentFactory
+    [FromKeyedServices(AgentKeys.MicrosoftDocs)] AITool microsoftDocsAgentTool,
+    [FromKeyedServices(AgentKeys.FileSystem)] AITool fileSystemAgentTool) : IAgentFactory
 {
     public static string AgentName => "chat";
 
@@ -40,6 +41,14 @@ public sealed class ChatAgent(
         any requests related to searching or retrieving official Microsoft documentation,
         finding code samples for Microsoft products, or looking up API references for Azure,
         .NET, Visual Studio, Microsoft 365, and other Microsoft technologies.
+
+        You have a file system assistant available as a tool. Delegate to it for any requests
+        related to reading local files, summarizing documents, exploring directory contents,
+        searching for text within files, or getting file metadata. The file system assistant
+        manages directory access permissions and will prompt the user if access to a new
+        directory is needed. When the user grants access (says "yes", "allow", "always allow",
+        etc.), delegate back to the file system assistant with the user's permission so it
+        can add the directory and complete the original request.
         """;
 
     public AIAgent Create() =>
@@ -51,7 +60,7 @@ public sealed class ChatAgent(
                 ChatOptions = new ChatOptions
                 {
                     Instructions = Instructions,
-                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool]
+                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
             });

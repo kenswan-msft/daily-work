@@ -33,7 +33,8 @@ public class ChatAgentTests
         AITool blackjackAgentTool = Substitute.For<AITool>();
         AITool knowledgeAgentTool = Substitute.For<AITool>();
         AITool microsoftDocsAgentTool = Substitute.For<AITool>();
-        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool);
+        AITool fileSystemAgentTool = Substitute.For<AITool>();
+        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool);
 
         AIAgent agent = sut.Create();
 

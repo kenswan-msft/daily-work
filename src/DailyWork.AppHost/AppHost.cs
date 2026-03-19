@@ -48,6 +48,9 @@ IResourceBuilder<SqlServerDatabaseResource> blackjackDb =
 IResourceBuilder<SqlServerDatabaseResource> knowledgeDb =
     sqlServer.AddDatabase("knowledge-db");
 
+IResourceBuilder<SqlServerDatabaseResource> filesystemDb =
+    sqlServer.AddDatabase("filesystem-db");
+
 IResourceBuilder<ProjectResource> goalsMcp =
     builder.AddProject<Projects.DailyWork_Mcp_Goals>("goals-mcp")
         .WithReference(goalsDb)
@@ -63,6 +66,11 @@ IResourceBuilder<ProjectResource> knowledgeMcp =
         .WithReference(knowledgeDb)
         .WaitFor(knowledgeDb);
 
+IResourceBuilder<ProjectResource> filesystemMcp =
+    builder.AddProject<Projects.DailyWork_Mcp_FileSystem>("filesystem-mcp")
+        .WithReference(filesystemDb)
+        .WaitFor(filesystemDb);
+
 IResourceBuilder<ProjectResource> api =
     builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WithReference(goalsDb)
@@ -70,13 +78,15 @@ IResourceBuilder<ProjectResource> api =
     .WithReference(goalsMcp)
     .WithReference(blackjackMcp)
     .WithReference(knowledgeMcp)
+    .WithReference(filesystemMcp)
     .WithReference(cosmosDatabase)
     .WithReference(agentConversationContainer)
     .WithReference(conversationMetadataContainer)
     .WaitFor(cosmosDatabase)
     .WaitFor(goalsMcp)
     .WaitFor(blackjackMcp)
-    .WaitFor(knowledgeMcp);
+    .WaitFor(knowledgeMcp)
+    .WaitFor(filesystemMcp);
 
 builder.AddProject<Projects.DailyWork_Web>("dailywork-web")
     .WithReference(api)

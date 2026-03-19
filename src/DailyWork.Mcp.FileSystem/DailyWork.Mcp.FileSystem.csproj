@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Migration Overrides" Condition="'$(TargetFramework)' == 'net10.0'">
+    <NoWarn>$(NoWarn);IDE0005;IDE0058</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DailyWork.Mcp.FileSystem.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DailyWork.ServiceDefaults\DailyWork.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+  </ItemGroup>
+
+</Project>
