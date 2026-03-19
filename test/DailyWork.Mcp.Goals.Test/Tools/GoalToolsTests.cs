@@ -1,5 +1,6 @@
 using DailyWork.Mcp.Goals.Data;
 using DailyWork.Mcp.Goals.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.Goals.Test.Tools;
 
@@ -10,7 +11,7 @@ public class GoalToolsTests
     [Fact]
     public async Task CreateGoal_WithMinimalInput_ReturnsGoalWithDefaults()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
 
         dynamic result = await tools.CreateGoal("Improve test coverage", cancellationToken: TestContext.Current.CancellationToken);
 
@@ -24,7 +25,7 @@ public class GoalToolsTests
     [Fact]
     public async Task CreateGoal_WithAllOptions_ReturnsFullGoal()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
 
         dynamic result = await tools.CreateGoal(
             title: "Ship v2.0",
@@ -44,7 +45,7 @@ public class GoalToolsTests
     [Fact]
     public async Task ListGoals_ReturnsAllGoals()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
         await tools.CreateGoal("Goal 1", cancellationToken: TestContext.Current.CancellationToken);
         await tools.CreateGoal("Goal 2", cancellationToken: TestContext.Current.CancellationToken);
 
@@ -56,7 +57,7 @@ public class GoalToolsTests
     [Fact]
     public async Task ListGoals_FiltersByStatus()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
         await tools.CreateGoal("Goal 1", cancellationToken: TestContext.Current.CancellationToken);
         await tools.CreateGoal("Goal 2", cancellationToken: TestContext.Current.CancellationToken);
 
@@ -72,7 +73,7 @@ public class GoalToolsTests
     [Fact]
     public async Task GetGoal_ExistingGoal_ReturnsGoalWithDetails()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
         dynamic created = await tools.CreateGoal("Test Goal", tags: ["dev"], cancellationToken: TestContext.Current.CancellationToken);
         string goalId = ((Guid)created.Id).ToString();
 
@@ -85,7 +86,7 @@ public class GoalToolsTests
     [Fact]
     public async Task GetGoal_NonExistent_ReturnsError()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
 
         dynamic result = await tools.GetGoal(Guid.NewGuid().ToString(), cancellationToken: TestContext.Current.CancellationToken);
 
@@ -95,7 +96,7 @@ public class GoalToolsTests
     [Fact]
     public async Task UpdateGoal_UpdatesPropertiesCorrectly()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
         dynamic created = await tools.CreateGoal("Original Title", cancellationToken: TestContext.Current.CancellationToken);
         string goalId = ((Guid)created.Id).ToString();
 
@@ -113,7 +114,7 @@ public class GoalToolsTests
     [Fact]
     public async Task DeleteGoal_Archive_SetsArchivedStatus()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
         dynamic created = await tools.CreateGoal("To Archive", cancellationToken: TestContext.Current.CancellationToken);
         string goalId = ((Guid)created.Id).ToString();
 
@@ -128,7 +129,7 @@ public class GoalToolsTests
     [Fact]
     public async Task DeleteGoal_Permanent_RemovesGoal()
     {
-        var tools = new GoalTools(db);
+        var tools = new GoalTools(db, NullLogger<GoalTools>.Instance);
         dynamic created = await tools.CreateGoal("To Delete", cancellationToken: TestContext.Current.CancellationToken);
         string goalId = ((Guid)created.Id).ToString();
 

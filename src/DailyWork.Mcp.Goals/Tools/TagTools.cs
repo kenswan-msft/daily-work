@@ -2,24 +2,28 @@ using System.ComponentModel;
 using DailyWork.Mcp.Goals.Data;
 using DailyWork.Mcp.Goals.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Goals.Tools;
 
 [McpServerToolType]
-public class TagTools(GoalsDbContext db)
+public class TagTools(GoalsDbContext db, ILogger<TagTools> logger)
 {
     [McpServerTool, Description("Create a new tag for organizing goals and todo items")]
     public async Task<object> CreateTag(
         string name,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Creating tag '{TagName}'", name);
+
         bool exists = await db.Tags
             .AnyAsync(t => t.Name == name, cancellationToken)
             .ConfigureAwait(false);
 
         if (exists)
         {
+            logger.LogWarning("Tag '{TagName}' already exists", name);
             return new { Error = $"Tag '{name}' already exists" };
         }
 
@@ -33,6 +37,8 @@ public class TagTools(GoalsDbContext db)
     [McpServerTool, Description("List all tags with counts of how many goals and todo items use each tag")]
     public async Task<object[]> ListTags(CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Listing all tags");
+
         List<Tag> tags = await db.Tags
             .Include(t => t.Goals)
             .Include(t => t.TodoItems)
@@ -58,6 +64,8 @@ public class TagTools(GoalsDbContext db)
         string action = "add",
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Tagging {ItemType} {ItemId} — action: {Action}, tag: '{TagName}'", itemType, itemId, action, tagName);
+
         Tag? tag = await db.Tags
             .FirstOrDefaultAsync(t => t.Name == tagName, cancellationToken)
             .ConfigureAwait(false);
@@ -79,6 +87,7 @@ public class TagTools(GoalsDbContext db)
 
                 if (goal is null)
                 {
+                    logger.LogWarning("Goal {GoalId} not found", itemId);
                     return new { Error = $"Goal with ID '{itemId}' not found" };
                 }
 
@@ -100,6 +109,7 @@ public class TagTools(GoalsDbContext db)
 
                 if (todo is null)
                 {
+                    logger.LogWarning("Todo {TodoId} not found", itemId);
                     return new { Error = $"Todo with ID '{itemId}' not found" };
                 }
 
@@ -112,6 +122,7 @@ public class TagTools(GoalsDbContext db)
                 return new { Message = $"Tag '{tagName}' added to todo '{todo.Title}'", TodoId = todo.Id, TagName = tagName };
             }
 
+            logger.LogWarning("Invalid item type '{ItemType}'", itemType);
             return new { Error = $"Invalid item type '{itemType}'. Use 'goal' or 'todo'" };
         }
 
@@ -119,6 +130,7 @@ public class TagTools(GoalsDbContext db)
         {
             if (tag is null)
             {
+                logger.LogWarning("Tag '{TagName}' not found for removal", tagName);
                 return new { Error = $"Tag '{tagName}' not found" };
             }
 
@@ -131,6 +143,7 @@ public class TagTools(GoalsDbContext db)
 
                 if (goal is null)
                 {
+                    logger.LogWarning("Goal {GoalId} not found", itemId);
                     return new { Error = $"Goal with ID '{itemId}' not found" };
                 }
 
@@ -153,6 +166,7 @@ public class TagTools(GoalsDbContext db)
 
                 if (todo is null)
                 {
+                    logger.LogWarning("Todo {TodoId} not found", itemId);
                     return new { Error = $"Todo with ID '{itemId}' not found" };
                 }
 
@@ -166,9 +180,11 @@ public class TagTools(GoalsDbContext db)
                 return new { Message = $"Tag '{tagName}' removed from todo '{todo.Title}'", TodoId = todo.Id, TagName = tagName };
             }
 
+            logger.LogWarning("Invalid item type '{ItemType}'", itemType);
             return new { Error = $"Invalid item type '{itemType}'. Use 'goal' or 'todo'" };
         }
 
+        logger.LogWarning("Invalid action '{Action}'", action);
         return new { Error = $"Invalid action '{action}'. Use 'add' or 'remove'" };
     }
 }

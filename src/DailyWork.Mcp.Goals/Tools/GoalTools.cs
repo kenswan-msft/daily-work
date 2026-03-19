@@ -2,12 +2,13 @@ using System.ComponentModel;
 using DailyWork.Mcp.Goals.Data;
 using DailyWork.Mcp.Goals.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Goals.Tools;
 
 [McpServerToolType]
-public class GoalTools(GoalsDbContext db)
+public class GoalTools(GoalsDbContext db, ILogger<GoalTools> logger)
 {
     [McpServerTool, Description("Create a new goal with optional description, priority, target date, and tags")]
     public async Task<object> CreateGoal(
@@ -18,6 +19,8 @@ public class GoalTools(GoalsDbContext db)
         string[]? tags = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Creating goal '{Title}' with priority {Priority}", title, priority);
+
         Goal goal = new()
         {
             Id = Guid.NewGuid(),
@@ -61,6 +64,8 @@ public class GoalTools(GoalsDbContext db)
         string? search = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Listing goals — status: {Status}, priority: {Priority}, tag: {Tag}, search: {Search}", status, priority, tag, search);
+
         IQueryable<Goal> query = db.Goals
             .Include(g => g.Tags)
             .Include(g => g.TodoItems)
@@ -117,6 +122,8 @@ public class GoalTools(GoalsDbContext db)
         string goalId,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Getting goal {GoalId}", goalId);
+
         Goal? goal = await db.Goals
             .Include(g => g.Tags)
             .Include(g => g.TodoItems)
@@ -127,6 +134,7 @@ public class GoalTools(GoalsDbContext db)
 
         if (goal is null)
         {
+            logger.LogWarning("Goal {GoalId} not found", goalId);
             return new { Error = $"Goal with ID '{goalId}' not found" };
         }
 
@@ -163,6 +171,8 @@ public class GoalTools(GoalsDbContext db)
         string? targetDate = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Updating goal {GoalId}", goalId);
+
         Goal? goal = await db.Goals
             .Include(g => g.Tags)
             .FirstOrDefaultAsync(g => g.Id == Guid.Parse(goalId), cancellationToken)
@@ -170,6 +180,7 @@ public class GoalTools(GoalsDbContext db)
 
         if (goal is null)
         {
+            logger.LogWarning("Goal {GoalId} not found", goalId);
             return new { Error = $"Goal with ID '{goalId}' not found" };
         }
 
@@ -221,12 +232,15 @@ public class GoalTools(GoalsDbContext db)
         bool archive = true,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Deleting goal {GoalId}, archive: {Archive}", goalId, archive);
+
         Goal? goal = await db.Goals
             .FirstOrDefaultAsync(g => g.Id == Guid.Parse(goalId), cancellationToken)
             .ConfigureAwait(false);
 
         if (goal is null)
         {
+            logger.LogWarning("Goal {GoalId} not found", goalId);
             return new { Error = $"Goal with ID '{goalId}' not found" };
         }
 

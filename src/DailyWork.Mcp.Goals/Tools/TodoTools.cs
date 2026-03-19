@@ -2,12 +2,13 @@ using System.ComponentModel;
 using DailyWork.Mcp.Goals.Data;
 using DailyWork.Mcp.Goals.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Goals.Tools;
 
 [McpServerToolType]
-public class TodoTools(GoalsDbContext db)
+public class TodoTools(GoalsDbContext db, ILogger<TodoTools> logger)
 {
     [McpServerTool, Description("Create a new todo item, optionally linked to a goal, with optional tags")]
     public async Task<object> CreateTodo(
@@ -19,6 +20,8 @@ public class TodoTools(GoalsDbContext db)
         string[]? tags = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Creating todo '{Title}' with priority {Priority}, goalId: {GoalId}", title, priority, goalId);
+
         if (goalId is not null)
         {
             bool goalExists = await db.Goals
@@ -27,6 +30,7 @@ public class TodoTools(GoalsDbContext db)
 
             if (!goalExists)
             {
+                logger.LogWarning("Goal {GoalId} not found when creating todo", goalId);
                 return new { Error = $"Goal with ID '{goalId}' not found" };
             }
         }
@@ -79,6 +83,8 @@ public class TodoTools(GoalsDbContext db)
         string? search = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Listing todos — status: {Status}, priority: {Priority}, tag: {Tag}, goalId: {GoalId}, search: {Search}", status, priority, tag, goalId, search);
+
         IQueryable<TodoItem> query = db.TodoItems
             .Include(t => t.Tags)
             .Include(t => t.Goal)
@@ -153,6 +159,8 @@ public class TodoTools(GoalsDbContext db)
         string todoId,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Getting todo {TodoId}", todoId);
+
         TodoItem? todo = await db.TodoItems
             .Include(t => t.Tags)
             .Include(t => t.Goal)
@@ -162,6 +170,7 @@ public class TodoTools(GoalsDbContext db)
 
         if (todo is null)
         {
+            logger.LogWarning("Todo {TodoId} not found", todoId);
             return new { Error = $"Todo with ID '{todoId}' not found" };
         }
 
@@ -192,6 +201,8 @@ public class TodoTools(GoalsDbContext db)
         string? goalId = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Updating todo {TodoId}", todoId);
+
         TodoItem? todo = await db.TodoItems
             .Include(t => t.Tags)
             .Include(t => t.Goal)
@@ -200,6 +211,7 @@ public class TodoTools(GoalsDbContext db)
 
         if (todo is null)
         {
+            logger.LogWarning("Todo {TodoId} not found", todoId);
             return new { Error = $"Todo with ID '{todoId}' not found" };
         }
 
@@ -237,6 +249,7 @@ public class TodoTools(GoalsDbContext db)
 
             if (!goalExists)
             {
+                logger.LogWarning("Goal {GoalId} not found when updating todo {TodoId}", goalId, todoId);
                 return new { Error = $"Goal with ID '{goalId}' not found" };
             }
 
@@ -267,12 +280,15 @@ public class TodoTools(GoalsDbContext db)
         string todoId,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Deleting todo {TodoId}", todoId);
+
         TodoItem? todo = await db.TodoItems
             .FirstOrDefaultAsync(t => t.Id == Guid.Parse(todoId), cancellationToken)
             .ConfigureAwait(false);
 
         if (todo is null)
         {
+            logger.LogWarning("Todo {TodoId} not found", todoId);
             return new { Error = $"Todo with ID '{todoId}' not found" };
         }
 

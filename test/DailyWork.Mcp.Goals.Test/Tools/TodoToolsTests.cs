@@ -1,5 +1,6 @@
 using DailyWork.Mcp.Goals.Data;
 using DailyWork.Mcp.Goals.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.Goals.Test.Tools;
 
@@ -10,7 +11,7 @@ public class TodoToolsTests
     [Fact]
     public async Task CreateTodo_WithMinimalInput_ReturnsTodoWithDefaults()
     {
-        var tools = new TodoTools(db);
+        var tools = new TodoTools(db, NullLogger<TodoTools>.Instance);
 
         dynamic result = await tools.CreateTodo("Review PR #42", cancellationToken: TestContext.Current.CancellationToken);
 
@@ -23,11 +24,11 @@ public class TodoToolsTests
     [Fact]
     public async Task CreateTodo_LinkedToGoal_SetsGoalId()
     {
-        var goalTools = new GoalTools(db);
+        var goalTools = new GoalTools(db, NullLogger<GoalTools>.Instance);
         dynamic goal = await goalTools.CreateGoal("Test Goal", cancellationToken: TestContext.Current.CancellationToken);
         string goalId = ((Guid)goal.Id).ToString();
 
-        var tools = new TodoTools(db);
+        var tools = new TodoTools(db, NullLogger<TodoTools>.Instance);
         dynamic result = await tools.CreateTodo(
             "Task for goal",
             goalId: goalId,
@@ -40,7 +41,7 @@ public class TodoToolsTests
     [Fact]
     public async Task CreateTodo_WithInvalidGoal_ReturnsError()
     {
-        var tools = new TodoTools(db);
+        var tools = new TodoTools(db, NullLogger<TodoTools>.Instance);
 
         dynamic result = await tools.CreateTodo(
             "Orphan task",
@@ -52,7 +53,7 @@ public class TodoToolsTests
     [Fact]
     public async Task ListTodos_FiltersByStatus()
     {
-        var tools = new TodoTools(db);
+        var tools = new TodoTools(db, NullLogger<TodoTools>.Instance);
         await tools.CreateTodo("Todo 1", cancellationToken: TestContext.Current.CancellationToken);
         await tools.CreateTodo("Todo 2", cancellationToken: TestContext.Current.CancellationToken);
 
@@ -66,7 +67,7 @@ public class TodoToolsTests
     [Fact]
     public async Task ListTodos_FiltersByTag()
     {
-        var tools = new TodoTools(db);
+        var tools = new TodoTools(db, NullLogger<TodoTools>.Instance);
         await tools.CreateTodo("Tagged", tags: ["urgent"], cancellationToken: TestContext.Current.CancellationToken);
         await tools.CreateTodo("Untagged", cancellationToken: TestContext.Current.CancellationToken);
 
@@ -78,7 +79,7 @@ public class TodoToolsTests
     [Fact]
     public async Task UpdateTodo_ChangesStatusAndPriority()
     {
-        var tools = new TodoTools(db);
+        var tools = new TodoTools(db, NullLogger<TodoTools>.Instance);
         dynamic created = await tools.CreateTodo("Do something", cancellationToken: TestContext.Current.CancellationToken);
         string todoId = ((Guid)created.Id).ToString();
 
@@ -94,7 +95,7 @@ public class TodoToolsTests
     [Fact]
     public async Task DeleteTodo_RemovesItem()
     {
-        var tools = new TodoTools(db);
+        var tools = new TodoTools(db, NullLogger<TodoTools>.Instance);
         dynamic created = await tools.CreateTodo("To delete", cancellationToken: TestContext.Current.CancellationToken);
         string todoId = ((Guid)created.Id).ToString();
 

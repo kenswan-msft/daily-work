@@ -2,12 +2,13 @@ using System.ComponentModel;
 using DailyWork.Mcp.Goals.Data;
 using DailyWork.Mcp.Goals.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Goals.Tools;
 
 [McpServerToolType]
-public class FocusTools(GoalsDbContext db)
+public class FocusTools(GoalsDbContext db, ILogger<FocusTools> logger)
 {
     [McpServerTool, Description(
         "Get a prioritized list of items to focus on today. " +
@@ -17,6 +18,8 @@ public class FocusTools(GoalsDbContext db)
         int maxItems = 10,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Getting daily focus, maxItems: {MaxItems}", maxItems);
+
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         List<TodoItem> activeTodos = await db.TodoItems
@@ -173,6 +176,8 @@ public class FocusTools(GoalsDbContext db)
         string goalId,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Getting goal progress for {GoalId}", goalId);
+
         Goal? goal = await db.Goals
             .Include(g => g.TodoItems)
             .Include(g => g.Tags)
@@ -182,6 +187,7 @@ public class FocusTools(GoalsDbContext db)
 
         if (goal is null)
         {
+            logger.LogWarning("Goal {GoalId} not found", goalId);
             return new { Error = $"Goal with ID '{goalId}' not found" };
         }
 
