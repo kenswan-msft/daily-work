@@ -1,7 +1,9 @@
 using DailyWork.Agents.Clients;
+using DailyWork.Agents.Conversations;
+using DailyWork.Agents.Data;
 using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
-using Microsoft.Azure.Cosmos;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,42 +51,24 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddConversationServices_WithMissingEnvVars_ThrowsOnResolve()
+    public void AddConversationServices_RegistersAllServices()
     {
-        const string DatabaseNameVariable = "AGENT_CONVERSATIONS_DATABASENAME";
-        const string ContainerNameVariable = "AGENT_CONVERSATIONS_CONTAINERNAME";
+        IDbContextFactory<ConversationsDbContext> dbContextFactory =
+            Substitute.For<IDbContextFactory<ConversationsDbContext>>();
+        ILoggerFactory loggerFactory = Substitute.For<ILoggerFactory>();
+        loggerFactory.CreateLogger(Arg.Any<string>()).Returns(Substitute.For<ILogger>());
 
-        string? originalDatabaseName = Environment.GetEnvironmentVariable(DatabaseNameVariable);
-        string? originalContainerName = Environment.GetEnvironmentVariable(ContainerNameVariable);
+        ServiceCollection services = new();
+        services.AddSingleton(dbContextFactory);
+        services.AddSingleton(loggerFactory);
+        services.AddSingleton(Substitute.For<IChatClient>());
+        services.AddConversationServices();
 
-        try
-        {
-            Environment.SetEnvironmentVariable(DatabaseNameVariable, null);
-            Environment.SetEnvironmentVariable(ContainerNameVariable, null);
+        using ServiceProvider provider = services.BuildServiceProvider();
 
-            CosmosClient cosmosClient = Substitute.For<CosmosClient>();
-            ILoggerFactory loggerFactory = Substitute.For<ILoggerFactory>();
-
-            ServiceCollection services = new();
-            services.AddSingleton(cosmosClient);
-            services.AddSingleton(loggerFactory);
-            services.AddSingleton(Substitute.For<IChatClient>());
-            services.AddConversationServices();
-
-            using ServiceProvider provider = services.BuildServiceProvider();
-
-            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
-                provider.GetRequiredService<CosmosChatMessageStore>);
-
-            Assert.Equal(
-                "AGENT_CONVERSATIONS_DATABASENAME environment variable is not set.",
-                exception.Message);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(DatabaseNameVariable, originalDatabaseName);
-            Environment.SetEnvironmentVariable(ContainerNameVariable, originalContainerName);
-        }
+        Assert.NotNull(provider.GetService<ConversationTitleGenerator>());
+        Assert.NotNull(provider.GetService<ConversationService>());
+        Assert.NotNull(provider.GetService<ChatMessageStore>());
     }
 
     [Fact]

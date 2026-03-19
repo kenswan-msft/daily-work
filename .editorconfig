@@ -294,6 +294,7 @@ dotnet_style_allow_multiple_blank_lines_experimental = false
 dotnet_diagnostic.IDE2000.severity = warning
 
 [**/Migrations/**.cs]
+dotnet_diagnostic.CA1825.severity = none
 dotnet_diagnostic.IDE0005.severity = none
 dotnet_diagnostic.IDE0022.severity = none
 dotnet_diagnostic.IDE0073.severity = none

@@ -1,16 +1,15 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using DailyWork.Agents.Conversations;
+using DailyWork.Agents.Data;
 using DailyWork.Agents.Factories;
 using DailyWork.Api.Dashboard;
 using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -22,26 +21,16 @@ namespace DailyWork.Api.Test;
 
 public sealed class DailyWorkApiFactory : WebApplicationFactory<GoalsReadDbContext>
 {
-    private const string DatabaseNameVariable = "AGENT_CONVERSATIONS_DATABASENAME";
-    private const string ContainerNameVariable = "AGENT_CONVERSATIONS_CONTAINERNAME";
-    private const string MetadataContainerNameVariable = "CONVERSATION_METADATA_CONTAINERNAME";
-    private const string CosmosConnectionString = "AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+E0N8A7Cgv30VRDJIWEHLM+E==;";
     private static readonly JsonElement EmptyJson = JsonDocument.Parse("{}").RootElement.Clone();
     private readonly StubAgent stubAgent = new();
     private readonly string dbName = Guid.NewGuid().ToString();
 
     public DailyWorkApiFactory()
     {
-        Environment.SetEnvironmentVariable(DatabaseNameVariable, "test-conversations-db");
-        Environment.SetEnvironmentVariable(ContainerNameVariable, "test-conversations");
-        Environment.SetEnvironmentVariable(MetadataContainerNameVariable, "test-conversation-metadata");
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", Environments.Development);
 
         ConversationServiceSubstitute = Substitute.For<ConversationService>(
-            CosmosClientSubstitute,
-            "test-conversations-db",
-            "test-conversation-metadata",
-            "test-conversations",
+            Substitute.For<IDbContextFactory<ConversationsDbContext>>(),
             Substitute.For<ILogger<ConversationService>>());
 
         ConversationServiceSubstitute
@@ -65,8 +54,6 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<GoalsReadDbConte
             .Returns(Task.CompletedTask);
     }
 
-    public CosmosClient CosmosClientSubstitute { get; } = Substitute.For<CosmosClient>();
-
     public IChatClient ChatClientSubstitute { get; } = Substitute.For<IChatClient>();
 
     public ConversationService ConversationServiceSubstitute { get; }
@@ -80,18 +67,8 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<GoalsReadDbConte
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Environments.Development);
-        builder.ConfigureAppConfiguration(configurationBuilder =>
-        {
-            configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:conversations-db"] = CosmosConnectionString,
-            });
-        });
         builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<CosmosClient>();
-            services.AddSingleton(CosmosClientSubstitute);
-
             services.RemoveAll<IChatClient>();
             services.AddSingleton(ChatClientSubstitute);
 
@@ -129,6 +106,18 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<GoalsReadDbConte
             }
 
             services.AddDbContext<KnowledgeReadDbContext>(options =>
+                options.UseInMemoryDatabase(dbName));
+
+            // Replace ConversationsDbContext with InMemory — remove all Aspire pool registrations
+            var conversationsDbDescriptors = services
+                .Where(d => d.ServiceType.ToString().Contains("ConversationsDbContext"))
+                .ToList();
+            foreach (ServiceDescriptor descriptor in conversationsDbDescriptors)
+            {
+                services.Remove(descriptor);
+            }
+
+            services.AddDbContextFactory<ConversationsDbContext>(options =>
                 options.UseInMemoryDatabase(dbName));
 
             services.PostConfigure<HealthCheckServiceOptions>(options =>

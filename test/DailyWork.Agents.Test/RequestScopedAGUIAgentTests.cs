@@ -64,7 +64,7 @@ public class RequestScopedAGUIAgentTests
         Assert.NotSame(existingSession, innerAgent.LastRunSession);
         Assert.True(
             innerAgent.CreateSessionResult.StateBag.TryGetValue<string>(
-                CosmosChatMessageStore.ConversationIdStateBagKey,
+                ChatMessageStore.ConversationIdStateBagKey,
                 out string? conversationId));
         Assert.Equal(ThreadId, conversationId);
     }

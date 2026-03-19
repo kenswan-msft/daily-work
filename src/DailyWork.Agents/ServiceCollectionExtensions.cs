@@ -1,9 +1,10 @@
 using DailyWork.Agents.Clients;
 using DailyWork.Agents.Conversations;
+using DailyWork.Agents.Data;
 using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting;
-using Microsoft.Azure.Cosmos;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,7 +41,7 @@ public static class ServiceCollectionExtensions
         /// Registers all conversation-related services as singletons:
         /// <see cref="ConversationTitleGenerator"/>,
         /// <see cref="ConversationService"/>, and
-        /// <see cref="CosmosChatMessageStore"/>.
+        /// <see cref="ChatMessageStore"/>.
         /// </summary>
         public IServiceCollection AddConversationServices()
         {
@@ -56,50 +57,22 @@ public static class ServiceCollectionExtensions
 
             services.AddSingleton(sp =>
             {
-                CosmosClient cosmosClient = sp.GetRequiredService<CosmosClient>();
-
-                string databaseName =
-                    Environment.GetEnvironmentVariable("AGENT_CONVERSATIONS_DATABASENAME")
-                    ?? throw new InvalidOperationException(
-                        "AGENT_CONVERSATIONS_DATABASENAME environment variable is not set.");
-
-                string metadataContainerName =
-                    Environment.GetEnvironmentVariable("CONVERSATION_METADATA_CONTAINERNAME")
-                    ?? throw new InvalidOperationException(
-                        "CONVERSATION_METADATA_CONTAINERNAME environment variable is not set.");
-
-                string messageContainerName =
-                    Environment.GetEnvironmentVariable("AGENT_CONVERSATIONS_CONTAINERNAME")
-                    ?? throw new InvalidOperationException(
-                        "AGENT_CONVERSATIONS_CONTAINERNAME environment variable is not set.");
+                IDbContextFactory<ConversationsDbContext> dbContextFactory =
+                    sp.GetRequiredService<IDbContextFactory<ConversationsDbContext>>();
 
                 ILogger<ConversationService> logger =
                     sp.GetRequiredService<ILoggerFactory>().CreateLogger<ConversationService>();
 
-                return new ConversationService(
-                    cosmosClient,
-                    databaseName,
-                    metadataContainerName,
-                    messageContainerName,
-                    logger);
+                return new ConversationService(dbContextFactory, logger);
             });
 
             services.AddSingleton(sp =>
             {
-                CosmosClient cosmosClient = sp.GetRequiredService<CosmosClient>();
+                IDbContextFactory<ConversationsDbContext> dbContextFactory =
+                    sp.GetRequiredService<IDbContextFactory<ConversationsDbContext>>();
 
-                string databaseName =
-                    Environment.GetEnvironmentVariable("AGENT_CONVERSATIONS_DATABASENAME")
-                    ?? throw new InvalidOperationException(
-                        "AGENT_CONVERSATIONS_DATABASENAME environment variable is not set.");
-
-                string containerName =
-                    Environment.GetEnvironmentVariable("AGENT_CONVERSATIONS_CONTAINERNAME")
-                    ?? throw new InvalidOperationException(
-                        "AGENT_CONVERSATIONS_CONTAINERNAME environment variable is not set.");
-
-                ILogger<CosmosChatMessageStore> logger =
-                    sp.GetRequiredService<ILoggerFactory>().CreateLogger<CosmosChatMessageStore>();
+                ILogger<ChatMessageStore> logger =
+                    sp.GetRequiredService<ILoggerFactory>().CreateLogger<ChatMessageStore>();
 
                 ConversationService conversationService =
                     sp.GetRequiredService<ConversationService>();
@@ -107,10 +80,8 @@ public static class ServiceCollectionExtensions
                 ConversationTitleGenerator titleGenerator =
                     sp.GetRequiredService<ConversationTitleGenerator>();
 
-                return new CosmosChatMessageStore(
-                    cosmosClient,
-                    databaseName,
-                    containerName,
+                return new ChatMessageStore(
+                    dbContextFactory,
                     logger,
                     conversationService,
                     titleGenerator);

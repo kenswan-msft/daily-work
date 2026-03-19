@@ -21,20 +21,6 @@ public class ConversationMetadataEntityTests
         Assert.Equal(entity.MessageCount, deserialized.MessageCount);
     }
 
-    [Theory]
-    [InlineData("id")]
-    [InlineData("title")]
-    [InlineData("createdAt")]
-    [InlineData("lastMessageAt")]
-    [InlineData("messageCount")]
-    public void Serialization_UsesJsonPropertyNames(string propertyName)
-    {
-        ConversationMetadataEntity entity = CreateEntity();
-        using var document = JsonDocument.Parse(JsonSerializer.Serialize(entity));
-
-        Assert.True(document.RootElement.TryGetProperty(propertyName, out _));
-    }
-
     private static ConversationMetadataEntity CreateEntity() => new()
     {
         Id = "conversation-123",

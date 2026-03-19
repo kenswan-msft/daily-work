@@ -7,7 +7,7 @@ namespace DailyWork.Agents.Factories;
 
 public sealed class ChatAgent(
     IChatClient chatClient,
-    CosmosChatMessageStore chatHistoryProvider,
+    ChatMessageStore chatHistoryProvider,
     [FromKeyedServices(AgentKeys.Goals)] AITool goalsAgentTool,
     [FromKeyedServices(AgentKeys.Blackjack)] AITool blackjackAgentTool,
     [FromKeyedServices(AgentKeys.Knowledge)] AITool knowledgeAgentTool,

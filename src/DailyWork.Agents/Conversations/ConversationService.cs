@@ -1,5 +1,6 @@
+using DailyWork.Agents.Data;
 using DailyWork.Agents.Messages;
-using Microsoft.Azure.Cosmos;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -7,34 +8,22 @@ using System.Text.Json;
 namespace DailyWork.Agents.Conversations;
 
 public class ConversationService(
-    CosmosClient cosmosClient,
-    string databaseId,
-    string metadataContainerId,
-    string messageContainerId,
+    IDbContextFactory<ConversationsDbContext> dbContextFactory,
     ILogger<ConversationService> logger)
 {
-    private Container MetadataContainer => cosmosClient.GetContainer(databaseId, metadataContainerId);
-    private Container MessageContainer => cosmosClient.GetContainer(databaseId, messageContainerId);
-
     public virtual async Task<IReadOnlyList<ConversationMetadataEntity>> GetConversationsAsync(
         CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Loading all conversations");
 
-        QueryDefinition query =
-            new("SELECT * FROM c ORDER BY c.lastMessageAt DESC");
+        using ConversationsDbContext dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
-        var conversations = new List<ConversationMetadataEntity>();
-        using FeedIterator<ConversationMetadataEntity> feed =
-            MetadataContainer.GetItemQueryIterator<ConversationMetadataEntity>(query);
-
-        while (feed.HasMoreResults)
-        {
-            FeedResponse<ConversationMetadataEntity> response =
-                await feed.ReadNextAsync(cancellationToken).ConfigureAwait(false);
-
-            conversations.AddRange(response);
-        }
+        List<ConversationMetadataEntity> conversations = await dbContext.ConversationMetadata
+            .OrderByDescending(c => c.LastMessageAt)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         logger.LogDebug("Loaded {Count} conversations", conversations.Count);
 
@@ -47,51 +36,43 @@ public class ConversationService(
     {
         logger.LogDebug("Loading messages for conversation {ConversationId}", conversationId);
 
-        QueryDefinition query =
-            new QueryDefinition(
-                    "SELECT * FROM c WHERE c.conversationId = @conversationId ORDER BY c.timestamp ASC")
-                .WithParameter("@conversationId", conversationId);
+        using ConversationsDbContext dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        List<ChatMessageEntity> entities = await dbContext.ChatMessages
+            .Where(m => m.ConversationId == conversationId)
+            .OrderBy(m => m.Timestamp)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var messages = new List<ConversationMessageSummary>();
-        using FeedIterator<ChatMessageEntity> feed =
-            MessageContainer.GetItemQueryIterator<ChatMessageEntity>(
-                query,
-                requestOptions: new QueryRequestOptions
-                {
-                    PartitionKey = new PartitionKey(conversationId)
-                });
 
-        while (feed.HasMoreResults)
+        foreach (ChatMessageEntity entity in entities)
         {
-            FeedResponse<ChatMessageEntity> response =
-                await feed.ReadNextAsync(cancellationToken).ConfigureAwait(false);
-
-            foreach (ChatMessageEntity entity in response)
+            // Prefer deserialized ChatMessage for accurate content
+            if (!string.IsNullOrEmpty(entity.SerializedMessage))
             {
-                // Prefer deserialized ChatMessage for accurate content
-                if (!string.IsNullOrEmpty(entity.SerializedMessage))
+                ChatMessage? chatMessage =
+                    JsonSerializer.Deserialize<ChatMessage>(entity.SerializedMessage);
+
+                if (chatMessage is not null)
                 {
-                    ChatMessage? chatMessage =
-                        JsonSerializer.Deserialize<ChatMessage>(entity.SerializedMessage);
+                    messages.Add(new ConversationMessageSummary(
+                        entity.Id,
+                        chatMessage.Role.Value,
+                        chatMessage.Text ?? entity.Content,
+                        entity.Timestamp));
 
-                    if (chatMessage is not null)
-                    {
-                        messages.Add(new ConversationMessageSummary(
-                            entity.Id,
-                            chatMessage.Role.Value,
-                            chatMessage.Text ?? entity.Content,
-                            entity.Timestamp));
-
-                        continue;
-                    }
+                    continue;
                 }
-
-                messages.Add(new ConversationMessageSummary(
-                    entity.Id,
-                    entity.Role,
-                    entity.Content,
-                    entity.Timestamp));
             }
+
+            messages.Add(new ConversationMessageSummary(
+                entity.Id,
+                entity.Role,
+                entity.Content,
+                entity.Timestamp));
         }
 
         logger.LogDebug(
@@ -111,45 +92,33 @@ public class ConversationService(
         logger.LogDebug(
             "Upserting metadata for conversation {ConversationId}", conversationId);
 
+        using ConversationsDbContext dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
         DateTime now = DateTime.UtcNow;
 
-        try
+        ConversationMetadataEntity? existing =
+            await dbContext.ConversationMetadata.FindAsync(
+                [conversationId], cancellationToken).ConfigureAwait(false);
+
+        if (existing is not null)
         {
-            ItemResponse<ConversationMetadataEntity> existing =
-                await MetadataContainer.ReadItemAsync<ConversationMetadataEntity>(
-                        conversationId,
-                        new PartitionKey(conversationId),
-                        cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
-
-            ConversationMetadataEntity metadata = existing.Resource;
-            metadata.LastMessageAt = now;
-            metadata.MessageCount += newMessageCount;
-
-            await MetadataContainer.ReplaceItemAsync(
-                    metadata,
-                    conversationId,
-                    new PartitionKey(conversationId),
-                    cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
+            existing.LastMessageAt = now;
+            existing.MessageCount += newMessageCount;
         }
-        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        else
         {
-            var metadata = new ConversationMetadataEntity
+            dbContext.ConversationMetadata.Add(new ConversationMetadataEntity
             {
                 Id = conversationId,
                 Title = title,
                 CreatedAt = now,
                 LastMessageAt = now,
                 MessageCount = newMessageCount
-            };
-
-            await MetadataContainer.CreateItemAsync(
-                    metadata,
-                    new PartitionKey(conversationId),
-                    cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
+            });
         }
+
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public virtual async Task UpdateTitleAsync(
@@ -157,36 +126,28 @@ public class ConversationService(
         string title,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            ItemResponse<ConversationMetadataEntity> existing =
-                await MetadataContainer.ReadItemAsync<ConversationMetadataEntity>(
-                        conversationId,
-                        new PartitionKey(conversationId),
-                        cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
+        using ConversationsDbContext dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
-            ConversationMetadataEntity metadata = existing.Resource;
-            metadata.Title = title;
+        ConversationMetadataEntity? existing =
+            await dbContext.ConversationMetadata.FindAsync(
+                [conversationId], cancellationToken).ConfigureAwait(false);
 
-            await MetadataContainer.ReplaceItemAsync(
-                    metadata,
-                    conversationId,
-                    new PartitionKey(conversationId),
-                    cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-
-            logger.LogDebug(
-                "Updated title for conversation {ConversationId}: {Title}",
-                conversationId,
-                title);
-        }
-        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        if (existing is null)
         {
             logger.LogWarning(
                 "Cannot update title: conversation {ConversationId} not found",
                 conversationId);
+            return;
         }
+
+        existing.Title = title;
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogDebug(
+            "Updated title for conversation {ConversationId}: {Title}",
+            conversationId,
+            title);
     }
 }
 

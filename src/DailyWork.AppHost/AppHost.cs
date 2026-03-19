@@ -1,27 +1,4 @@
-using Aspire.Hosting.Azure;
-
 IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder(args);
-
-#pragma warning disable ASPIRECOSMOSDB001
-IResourceBuilder<AzureCosmosDBResource> cosmos =
-    builder.AddAzureCosmosDB("cosmos-db")
-        .RunAsPreviewEmulator(emulator =>
-        {
-            emulator
-                .WithDataExplorer()
-                .WithDataVolume()
-                .WithLifetime(ContainerLifetime.Persistent);
-        });
-#pragma warning restore ASPIRECOSMOSDB001
-
-IResourceBuilder<AzureCosmosDBDatabaseResource> cosmosDatabase =
-    cosmos.AddCosmosDatabase("conversations-db");
-
-IResourceBuilder<AzureCosmosDBContainerResource> agentConversationContainer =
-    cosmosDatabase.AddContainer("agent-conversations", "/conversationId");
-
-IResourceBuilder<AzureCosmosDBContainerResource> conversationMetadataContainer =
-    cosmosDatabase.AddContainer("conversation-metadata", "/id");
 
 IResourceBuilder<ParameterResource> sqlPassword =
     builder.AddParameter(
@@ -35,7 +12,7 @@ IResourceBuilder<ParameterResource> sqlPassword =
         persist: true);
 
 IResourceBuilder<SqlServerServerResource> sqlServer =
-    builder.AddSqlServer("dailywork-sql-server", password: sqlPassword)
+    builder.AddSqlServer("dailywork-sql-server", password: sqlPassword, port: 63141)
         .WithLifetime(ContainerLifetime.Persistent)
         .WithDataVolume();
 
@@ -50,6 +27,9 @@ IResourceBuilder<SqlServerDatabaseResource> knowledgeDb =
 
 IResourceBuilder<SqlServerDatabaseResource> filesystemDb =
     sqlServer.AddDatabase("filesystem-db");
+
+IResourceBuilder<SqlServerDatabaseResource> conversationsDb =
+    sqlServer.AddDatabase("conversations-db");
 
 IResourceBuilder<ProjectResource> goalsMcp =
     builder.AddProject<Projects.DailyWork_Mcp_Goals>("goals-mcp")
@@ -79,10 +59,8 @@ IResourceBuilder<ProjectResource> api =
     .WithReference(blackjackMcp)
     .WithReference(knowledgeMcp)
     .WithReference(filesystemMcp)
-    .WithReference(cosmosDatabase)
-    .WithReference(agentConversationContainer)
-    .WithReference(conversationMetadataContainer)
-    .WaitFor(cosmosDatabase)
+    .WithReference(conversationsDb)
+    .WaitFor(conversationsDb)
     .WaitFor(goalsMcp)
     .WaitFor(blackjackMcp)
     .WaitFor(knowledgeMcp)

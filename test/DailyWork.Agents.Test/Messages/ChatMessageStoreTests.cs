@@ -1,29 +1,26 @@
 using DailyWork.Agents.Conversations;
+using DailyWork.Agents.Data;
 using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
-using Microsoft.Azure.Cosmos;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace DailyWork.Agents.Test.Messages;
 
-public class CosmosChatMessageStoreTests
+public class ChatMessageStoreTests
 {
-    private const string DatabaseId = "test-db";
-    private const string ContainerId = "test-container";
-
     [Fact]
     public void ConversationIdStateBagKey_HasExpectedValue() =>
-        Assert.Equal("cosmos_conversation_id", CosmosChatMessageStore.ConversationIdStateBagKey);
+        Assert.Equal("cosmos_conversation_id", ChatMessageStore.ConversationIdStateBagKey);
 
     [Fact]
     public void Constructor_WithValidArgs_CreatesInstance()
     {
-        CosmosChatMessageStore store = CreateStore();
+        ChatMessageStore store = CreateStore();
 
         Assert.NotNull(store);
     }
@@ -31,7 +28,7 @@ public class CosmosChatMessageStoreTests
     [Fact]
     public void StateKey_ReturnsNonEmpty()
     {
-        CosmosChatMessageStore store = CreateStore();
+        ChatMessageStore store = CreateStore();
 
         Assert.NotNull(store.StateKey);
         Assert.NotEmpty(store.StateKey);
@@ -40,7 +37,7 @@ public class CosmosChatMessageStoreTests
     [Fact]
     public async Task InvokingAsync_NullSession_ReturnsEmpty()
     {
-        CosmosChatMessageStore store = CreateStore();
+        ChatMessageStore store = CreateStore();
         var context = new ChatHistoryProvider.InvokingContext(
             new StubAgent(), null!, []);
 
@@ -52,7 +49,7 @@ public class CosmosChatMessageStoreTests
     [Fact]
     public async Task InvokingAsync_SessionWithoutConversationId_ReturnsEmpty()
     {
-        CosmosChatMessageStore store = CreateStore();
+        ChatMessageStore store = CreateStore();
         var session = new TestAgentSession();
         var context = new ChatHistoryProvider.InvokingContext(
             new StubAgent(), session, []);
@@ -63,39 +60,43 @@ public class CosmosChatMessageStoreTests
     }
 
     [Fact]
-    public async Task InvokingAsync_WithConversationId_QueriesCosmos()
+    public async Task InvokingAsync_WithConversationId_ReturnsStoredMessages()
     {
         const string conversationId = "conv-123";
+        string dbName = Guid.NewGuid().ToString();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory = CreateDbContextFactory(dbName);
 
-        Container container = Substitute.For<Container>();
-        FeedIterator<ChatMessageEntity> feedIterator = Substitute.For<FeedIterator<ChatMessageEntity>>();
-        feedIterator.HasMoreResults.Returns(false);
+        // Seed a message
+        using (ConversationsDbContext seedContext = dbContextFactory.CreateDbContext())
+        {
+            seedContext.ChatMessages.Add(new ChatMessageEntity
+            {
+                Id = "msg-1",
+                ConversationId = conversationId,
+                Role = "user",
+                Content = "hello",
+                Timestamp = DateTime.UtcNow
+            });
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
 
-        container.GetItemQueryIterator<ChatMessageEntity>(
-            Arg.Any<QueryDefinition>(),
-            Arg.Any<string>(),
-            Arg.Any<QueryRequestOptions>())
-            .Returns(feedIterator);
-
-        CosmosChatMessageStore store = CreateStore(container);
+        ChatMessageStore store = CreateStore(dbContextFactory);
         AgentSession session = CreateSessionWithConversationId(conversationId);
         var context = new ChatHistoryProvider.InvokingContext(
             new StubAgent(), session, []);
 
         IEnumerable<ChatMessage> result = await store.InvokingAsync(context, TestContext.Current.CancellationToken);
 
-        Assert.Empty(result);
-        container.Received(1).GetItemQueryIterator<ChatMessageEntity>(
-            Arg.Any<QueryDefinition>(),
-            Arg.Any<string>(),
-            Arg.Any<QueryRequestOptions>());
+        ChatMessage message = Assert.Single(result);
+        Assert.Equal("hello", message.Text);
     }
 
     [Fact]
     public async Task InvokedAsync_NullSession_SkipsStorage()
     {
-        Container container = Substitute.For<Container>();
-        CosmosChatMessageStore store = CreateStore(container);
+        string dbName = Guid.NewGuid().ToString();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory = CreateDbContextFactory(dbName);
+        ChatMessageStore store = CreateStore(dbContextFactory);
 
         var context = new ChatHistoryProvider.InvokedContext(
             new StubAgent(), null!,
@@ -104,23 +105,17 @@ public class CosmosChatMessageStoreTests
 
         await store.InvokedAsync(context, TestContext.Current.CancellationToken);
 
-        await container.DidNotReceive().CreateItemAsync(
-            Arg.Any<ChatMessageEntity>(),
-            Arg.Any<PartitionKey>(),
-            Arg.Any<ItemRequestOptions>(),
-            Arg.Any<CancellationToken>());
+        using ConversationsDbContext verifyContext = dbContextFactory.CreateDbContext();
+        Assert.Empty(verifyContext.ChatMessages);
     }
 
     [Fact]
     public async Task InvokedAsync_WithConversationId_StoresMessages()
     {
         const string conversationId = "conv-456";
-
-        Container container = Substitute.For<Container>();
-        SetupEmptyExistingMessageQuery(container);
-        SetupCreateItem(container);
-
-        CosmosChatMessageStore store = CreateStore(container);
+        string dbName = Guid.NewGuid().ToString();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory = CreateDbContextFactory(dbName);
+        ChatMessageStore store = CreateStore(dbContextFactory);
         AgentSession session = CreateSessionWithConversationId(conversationId);
 
         var requestMessages = new List<ChatMessage>
@@ -137,22 +132,17 @@ public class CosmosChatMessageStoreTests
 
         await store.InvokedAsync(context, TestContext.Current.CancellationToken);
 
-        await container.Received(2).CreateItemAsync(
-            Arg.Any<ChatMessageEntity>(),
-            Arg.Any<PartitionKey>(),
-            Arg.Any<ItemRequestOptions>(),
-            Arg.Any<CancellationToken>());
+        using ConversationsDbContext verifyContext = dbContextFactory.CreateDbContext();
+        Assert.Equal(2, verifyContext.ChatMessages.Count(m => m.ConversationId == conversationId));
     }
 
     [Fact]
     public async Task InvokedAsync_EmptyTextMessages_AreFiltered()
     {
         const string conversationId = "conv-789";
-
-        Container container = Substitute.For<Container>();
-        SetupEmptyExistingMessageQuery(container);
-
-        CosmosChatMessageStore store = CreateStore(container);
+        string dbName = Guid.NewGuid().ToString();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory = CreateDbContextFactory(dbName);
+        ChatMessageStore store = CreateStore(dbContextFactory);
         AgentSession session = CreateSessionWithConversationId(conversationId);
 
         var requestMessages = new List<ChatMessage>
@@ -166,18 +156,16 @@ public class CosmosChatMessageStoreTests
 
         await store.InvokedAsync(context, TestContext.Current.CancellationToken);
 
-        await container.DidNotReceive().CreateItemAsync(
-            Arg.Any<ChatMessageEntity>(),
-            Arg.Any<PartitionKey>(),
-            Arg.Any<ItemRequestOptions>(),
-            Arg.Any<CancellationToken>());
+        using ConversationsDbContext verifyContext = dbContextFactory.CreateDbContext();
+        Assert.Empty(verifyContext.ChatMessages);
     }
 
     [Fact]
     public async Task InvokedAsync_SessionWithoutConversationId_SkipsStorage()
     {
-        Container container = Substitute.For<Container>();
-        CosmosChatMessageStore store = CreateStore(container);
+        string dbName = Guid.NewGuid().ToString();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory = CreateDbContextFactory(dbName);
+        ChatMessageStore store = CreateStore(dbContextFactory);
         var session = new TestAgentSession();
 
         var context = new ChatHistoryProvider.InvokedContext(
@@ -187,62 +175,48 @@ public class CosmosChatMessageStoreTests
 
         await store.InvokedAsync(context, TestContext.Current.CancellationToken);
 
-        await container.DidNotReceive().CreateItemAsync(
-            Arg.Any<ChatMessageEntity>(),
-            Arg.Any<PartitionKey>(),
-            Arg.Any<ItemRequestOptions>(),
-            Arg.Any<CancellationToken>());
+        using ConversationsDbContext verifyContext = dbContextFactory.CreateDbContext();
+        Assert.Empty(verifyContext.ChatMessages);
     }
 
-    private static CosmosChatMessageStore CreateStore(Container? container = null)
+    private static IDbContextFactory<ConversationsDbContext> CreateDbContextFactory(string dbName)
     {
-        CosmosClient cosmosClient = Substitute.For<CosmosClient>();
-        container ??= Substitute.For<Container>();
-        cosmosClient.GetContainer(DatabaseId, ContainerId).Returns(container);
-        ILogger<CosmosChatMessageStore> logger = Substitute.For<ILogger<CosmosChatMessageStore>>();
+        DbContextOptions<ConversationsDbContext> options = new DbContextOptionsBuilder<ConversationsDbContext>()
+            .UseInMemoryDatabase(dbName)
+            .Options;
+
+        IDbContextFactory<ConversationsDbContext> factory =
+            Substitute.For<IDbContextFactory<ConversationsDbContext>>();
+
+        factory.CreateDbContext()
+            .Returns(_ => new ConversationsDbContext(options));
+
+        factory.CreateDbContextAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(new ConversationsDbContext(options)));
+
+        return factory;
+    }
+
+    private static ChatMessageStore CreateStore(IDbContextFactory<ConversationsDbContext>? dbContextFactory = null)
+    {
+        string dbName = Guid.NewGuid().ToString();
+        dbContextFactory ??= CreateDbContextFactory(dbName);
+        ILogger<ChatMessageStore> logger = Substitute.For<ILogger<ChatMessageStore>>();
         IChatClient chatClient = Substitute.For<IChatClient>();
         ConversationService conversationService = Substitute.For<ConversationService>(
-            cosmosClient, "db", "meta", "msg", Substitute.For<ILogger<ConversationService>>());
+            CreateDbContextFactory(dbName), Substitute.For<ILogger<ConversationService>>());
         ConversationTitleGenerator titleGenerator = Substitute.For<ConversationTitleGenerator>(
             chatClient, Substitute.For<ILogger<ConversationTitleGenerator>>());
 
-        return new CosmosChatMessageStore(
-            cosmosClient, DatabaseId, ContainerId, logger, conversationService, titleGenerator);
+        return new ChatMessageStore(dbContextFactory, logger, conversationService, titleGenerator);
     }
 
     private static AgentSession CreateSessionWithConversationId(string conversationId)
     {
         var session = new TestAgentSession();
-        session.StateBag.SetValue(CosmosChatMessageStore.ConversationIdStateBagKey, conversationId);
+        session.StateBag.SetValue(ChatMessageStore.ConversationIdStateBagKey, conversationId);
         return session;
     }
-
-    private static void SetupEmptyExistingMessageQuery(Container container)
-    {
-        FeedIterator<ChatMessageEntity> emptyFeed = Substitute.For<FeedIterator<ChatMessageEntity>>();
-        emptyFeed.HasMoreResults.Returns(false);
-
-        container.GetItemQueryIterator<ChatMessageEntity>(
-            Arg.Any<QueryDefinition>(),
-            Arg.Any<string>(),
-            Arg.Any<QueryRequestOptions>())
-            .Returns(emptyFeed);
-    }
-
-    private static void SetupCreateItem(Container container) =>
-        container.CreateItemAsync(
-            Arg.Any<ChatMessageEntity>(),
-            Arg.Any<PartitionKey>(),
-            Arg.Any<ItemRequestOptions>(),
-            Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                ChatMessageEntity entity = callInfo.Arg<ChatMessageEntity>();
-                ItemResponse<ChatMessageEntity> response = Substitute.For<ItemResponse<ChatMessageEntity>>();
-                response.StatusCode.Returns(HttpStatusCode.Created);
-                response.Resource.Returns(entity);
-                return response;
-            });
 
     private sealed class TestAgentSession : AgentSession;
 

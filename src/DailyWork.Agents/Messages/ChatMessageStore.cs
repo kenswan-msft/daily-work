@@ -1,18 +1,16 @@
 using DailyWork.Agents.Conversations;
+using DailyWork.Agents.Data;
 using Microsoft.Agents.AI;
-using Microsoft.Azure.Cosmos;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace DailyWork.Agents.Messages;
 
-public class CosmosChatMessageStore(
-    CosmosClient cosmosClient,
-    string databaseId,
-    string containerId,
-    ILogger<CosmosChatMessageStore> logger,
+public class ChatMessageStore(
+    IDbContextFactory<ConversationsDbContext> dbContextFactory,
+    ILogger<ChatMessageStore> logger,
     ConversationService conversationService,
     ConversationTitleGenerator titleGenerator) : ChatHistoryProvider
 {
@@ -20,8 +18,6 @@ public class CosmosChatMessageStore(
     /// The key used to store/retrieve the conversation ID in <see cref="AgentSession.StateBag"/>.
     /// </summary>
     public const string ConversationIdStateBagKey = "cosmos_conversation_id";
-
-    private Container MessageContainer => cosmosClient.GetContainer(databaseId, containerId);
 
     private static string? ResolveConversationId(AgentSession? session)
     {
@@ -55,44 +51,36 @@ public class CosmosChatMessageStore(
 
         logger.LogDebug("Loading chat history for conversation {ConversationId}", conversationId);
 
-        QueryDefinition query =
-            new QueryDefinition(
-                "SELECT * FROM c WHERE c.conversationId = @conversationId ORDER BY c.timestamp ASC")
-                .WithParameter("@conversationId", conversationId);
+        using ConversationsDbContext dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        List<ChatMessageEntity> entities = await dbContext.ChatMessages
+            .Where(m => m.ConversationId == conversationId)
+            .OrderBy(m => m.Timestamp)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var messages = new List<ChatMessage>();
-        using FeedIterator<ChatMessageEntity> feed = MessageContainer.GetItemQueryIterator<ChatMessageEntity>(
-            query,
-            requestOptions: new QueryRequestOptions
-            {
-                PartitionKey = new PartitionKey(conversationId)
-            });
 
-        while (feed.HasMoreResults)
+        foreach (ChatMessageEntity entity in entities)
         {
-            FeedResponse<ChatMessageEntity> response =
-                await feed.ReadNextAsync(cancellationToken).ConfigureAwait(false);
-
-            foreach (ChatMessageEntity entity in response)
+            if (!string.IsNullOrEmpty(entity.SerializedMessage))
             {
-                if (!string.IsNullOrEmpty(entity.SerializedMessage))
-                {
-                    ChatMessage? message = JsonSerializer.Deserialize<ChatMessage>(entity.SerializedMessage);
+                ChatMessage? message = JsonSerializer.Deserialize<ChatMessage>(entity.SerializedMessage);
 
-                    if (message is not null)
-                    {
-                        messages.Add(message);
-                    }
-                }
-                else
+                if (message is not null)
                 {
-                    messages.Add(
-                        new ChatMessage(new ChatRole(entity.Role), entity.Content)
-                        {
-                            MessageId = Guid.NewGuid().ToString()
-                        });
+                    messages.Add(message);
+                    continue;
                 }
             }
+
+            messages.Add(
+                new ChatMessage(new ChatRole(entity.Role), entity.Content)
+                {
+                    MessageId = Guid.NewGuid().ToString()
+                });
         }
 
         logger.LogDebug(
@@ -130,6 +118,9 @@ public class CosmosChatMessageStore(
                 .ToList()!,
             cancellationToken).ConfigureAwait(false);
 
+        using ConversationsDbContext dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
         foreach (ChatMessage message in allNewMessages.Where(m =>
             string.IsNullOrWhiteSpace(m.MessageId) || !existingMessageIds.Contains(m.MessageId)))
         {
@@ -148,12 +139,10 @@ public class CosmosChatMessageStore(
                 SerializedMessage = JsonSerializer.Serialize(message)
             };
 
-            await MessageContainer.CreateItemAsync(
-                    entity,
-                    new PartitionKey(entity.PartitionKey),
-                    cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
+            dbContext.ChatMessages.Add(entity);
         }
+
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         logger.LogDebug(
             "Saved {Count} messages for conversation {ConversationId}",
@@ -247,32 +236,15 @@ public class CosmosChatMessageStore(
             return [];
         }
 
-        QueryDefinition query = new QueryDefinition(
-                "SELECT c.id FROM c WHERE c.conversationId = @conversationId AND ARRAY_CONTAINS(@messageIds, c.id)")
-            .WithParameter("@conversationId", conversationId)
-            .WithParameter("@messageIds", messageIds);
+        using ConversationsDbContext dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
-        var existingIds = new HashSet<string>();
-        using FeedIterator<IdOnlyEntity> feed = MessageContainer.GetItemQueryIterator<IdOnlyEntity>(
-            query,
-            requestOptions: new QueryRequestOptions
-            {
-                PartitionKey = new PartitionKey(conversationId)
-            });
+        List<string> existingIds = await dbContext.ChatMessages
+            .Where(m => m.ConversationId == conversationId && messageIds.Contains(m.Id))
+            .Select(m => m.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        while (feed.HasMoreResults)
-        {
-            FeedResponse<IdOnlyEntity> response =
-                await feed.ReadNextAsync(cancellationToken).ConfigureAwait(false);
-
-            foreach (IdOnlyEntity entity in response)
-            {
-                existingIds.Add(entity.Id);
-            }
-        }
-
-        return existingIds;
+        return [.. existingIds];
     }
-
-    private record IdOnlyEntity([property: JsonPropertyName("id")] string Id);
 }

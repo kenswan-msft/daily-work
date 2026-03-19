@@ -1,18 +1,17 @@
-using System.Text.Json;
 using DailyWork.Agents;
 using DailyWork.Agents.Clients;
 using DailyWork.Agents.Conversations;
+using DailyWork.Agents.Data;
 using DailyWork.Agents.Factories;
 using DailyWork.Api.Dashboard;
 using Microsoft.Agents.AI.Hosting.AGUI.AspNetCore;
+using Microsoft.EntityFrameworkCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.AddAzureCosmosClient("conversations-db", configureClientOptions: options =>
-{
-    options.UseSystemTextJsonSerializerWithOptions = JsonSerializerOptions.Default;
-});
+builder.Services.AddDbContextFactory<ConversationsDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("conversations-db")));
 builder.AddSqlServerDbContext<GoalsReadDbContext>("goals-db");
 builder.AddSqlServerDbContext<KnowledgeReadDbContext>("knowledge-db");
 
@@ -40,6 +39,19 @@ WebApplication app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    IDbContextFactory<ConversationsDbContext> dbContextFactory =
+        app.Services.GetRequiredService<IDbContextFactory<ConversationsDbContext>>();
+    using ConversationsDbContext dbContext = dbContextFactory.CreateDbContext();
+
+    if (dbContext.Database.IsRelational())
+    {
+        await dbContext.Database.MigrateAsync().ConfigureAwait(false);
+    }
+    else
+    {
+        await dbContext.Database.EnsureCreatedAsync().ConfigureAwait(false);
+    }
 }
 
 app.MapDefaultEndpoints();
@@ -75,6 +87,6 @@ app.MapGet("/api/conversations/{id}/messages", async (
     return Results.Ok(messages);
 });
 
-app.Run();
+await app.RunAsync().ConfigureAwait(false);
 
 public partial class Program;

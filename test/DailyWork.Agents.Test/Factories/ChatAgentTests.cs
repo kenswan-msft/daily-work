@@ -1,8 +1,9 @@
 using DailyWork.Agents.Factories;
 using DailyWork.Agents.Conversations;
+using DailyWork.Agents.Data;
 using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
-using Microsoft.Azure.Cosmos;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -21,14 +22,15 @@ public class ChatAgentTests
     public void Create_ReturnsNonNullAgent()
     {
         IChatClient chatClient = Substitute.For<IChatClient>();
-        CosmosClient cosmosClient = Substitute.For<CosmosClient>();
-        ILogger<CosmosChatMessageStore> logger = Substitute.For<ILogger<CosmosChatMessageStore>>();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory =
+            Substitute.For<IDbContextFactory<ConversationsDbContext>>();
+        ILogger<ChatMessageStore> logger = Substitute.For<ILogger<ChatMessageStore>>();
         ConversationService conversationService = Substitute.For<ConversationService>(
-            cosmosClient, "db", "meta", "msg", Substitute.For<ILogger<ConversationService>>());
+            dbContextFactory, Substitute.For<ILogger<ConversationService>>());
         ConversationTitleGenerator titleGenerator = Substitute.For<ConversationTitleGenerator>(
             chatClient, Substitute.For<ILogger<ConversationTitleGenerator>>());
-        var chatHistoryProvider = new CosmosChatMessageStore(
-            cosmosClient, "database", "container", logger, conversationService, titleGenerator);
+        var chatHistoryProvider = new ChatMessageStore(
+            dbContextFactory, logger, conversationService, titleGenerator);
         AITool goalsAgentTool = Substitute.For<AITool>();
         AITool blackjackAgentTool = Substitute.For<AITool>();
         AITool knowledgeAgentTool = Substitute.For<AITool>();

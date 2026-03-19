@@ -17,7 +17,7 @@ namespace DailyWork.Agents;
 /// (enabling scoped dependencies like EF Core DbContext in tools), extracts
 /// the <c>ag_ui_thread_id</c> from <c>ChatOptions.AdditionalProperties</c>,
 /// and sets it in the session's <c>StateBag</c> for
-/// <see cref="CosmosChatMessageStore"/> to resolve.
+/// <see cref="ChatMessageStore"/> to resolve.
 /// </remarks>
 public sealed class RequestScopedAGUIAgent(
     string agentName,
@@ -79,12 +79,12 @@ public sealed class RequestScopedAGUIAgent(
 
     /// <summary>
     /// Creates a session and propagates the AGUI thread ID via <see cref="AgentSession.StateBag"/>
-    /// so that <see cref="CosmosChatMessageStore"/> can resolve it.
+    /// so that <see cref="ChatMessageStore"/> can resolve it.
     /// </summary>
     /// <remarks>
     /// The framework's <see cref="ChatClientAgent"/> enforces mutual exclusion between
     /// <c>ConversationId</c> and <c>ChatHistoryProvider</c>: setting <c>ConversationId</c>
-    /// signals client-managed history, which conflicts with our <c>CosmosChatMessageStore</c>.
+    /// signals client-managed history, which conflicts with our <c>ChatMessageStore</c>.
     /// Instead, we pass the thread ID through <c>StateBag</c> which our provider checks first.
     /// </remarks>
     private static async ValueTask<AgentSession?> ResolveSessionAsync(
@@ -99,7 +99,7 @@ public sealed class RequestScopedAGUIAgent(
         }
 
         session = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
-        session.StateBag.SetValue(CosmosChatMessageStore.ConversationIdStateBagKey, threadId);
+        session.StateBag.SetValue(ChatMessageStore.ConversationIdStateBagKey, threadId);
 
         return session;
     }
