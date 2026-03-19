@@ -63,6 +63,7 @@ IResourceBuilder<ProjectResource> api =
     builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WithReference(goalsDb)
     .WithReference(knowledgeDb)
+    .WithReference(projectsDb)
     .WithReference(goalsMcp)
     .WithReference(blackjackMcp)
     .WithReference(knowledgeMcp)
