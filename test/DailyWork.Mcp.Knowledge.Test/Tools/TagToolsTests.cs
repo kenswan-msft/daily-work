@@ -1,5 +1,6 @@
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.Knowledge.Test.Tools;
 
@@ -10,7 +11,7 @@ public class TagToolsTests
     [Fact]
     public async Task ListTags_NoTags_ReturnsEmptyArray()
     {
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
 
         object[] results = await tools.ListTags(TestContext.Current.CancellationToken);
 
@@ -20,14 +21,14 @@ public class TagToolsTests
     [Fact]
     public async Task ListTags_WithItems_ReturnsTagsWithCounts()
     {
-        LinkTools linkTools = new(db);
-        NoteTools noteTools = new(db);
+        LinkTools linkTools = new(db, NullLogger<LinkTools>.Instance);
+        NoteTools noteTools = new(db, NullLogger<NoteTools>.Instance);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         await linkTools.SaveLink("https://example.com", "Link 1", tags: ["shared-tag", "link-only"], cancellationToken: ct);
         await noteTools.SaveNote("Note 1", "content", tags: ["shared-tag"], cancellationToken: ct);
 
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
         object[] results = await tools.ListTags(ct);
 
         Assert.Equal(2, results.Length);
@@ -46,12 +47,12 @@ public class TagToolsTests
     [Fact]
     public async Task TagItem_AddTag_AddsTagToItem()
     {
-        LinkTools linkTools = new(db);
+        LinkTools linkTools = new(db, NullLogger<LinkTools>.Instance);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         dynamic saved = await linkTools.SaveLink("https://example.com", "Test Link", cancellationToken: ct);
 
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
         dynamic result = await tools.TagItem(
             itemId: ((Guid)saved.Id).ToString(),
             tagName: "new-tag",
@@ -65,12 +66,12 @@ public class TagToolsTests
     [Fact]
     public async Task TagItem_AddDuplicateTag_ReturnsAlreadyHasMessage()
     {
-        LinkTools linkTools = new(db);
+        LinkTools linkTools = new(db, NullLogger<LinkTools>.Instance);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         dynamic saved = await linkTools.SaveLink("https://example.com", "Test Link", tags: ["existing"], cancellationToken: ct);
 
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
         dynamic result = await tools.TagItem(
             itemId: ((Guid)saved.Id).ToString(),
             tagName: "existing",
@@ -83,12 +84,12 @@ public class TagToolsTests
     [Fact]
     public async Task TagItem_RemoveTag_RemovesTagFromItem()
     {
-        LinkTools linkTools = new(db);
+        LinkTools linkTools = new(db, NullLogger<LinkTools>.Instance);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         dynamic saved = await linkTools.SaveLink("https://example.com", "Test Link", tags: ["to-remove"], cancellationToken: ct);
 
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
         dynamic result = await tools.TagItem(
             itemId: ((Guid)saved.Id).ToString(),
             tagName: "to-remove",
@@ -102,12 +103,12 @@ public class TagToolsTests
     [Fact]
     public async Task TagItem_RemoveNonExistentTag_ReturnsError()
     {
-        LinkTools linkTools = new(db);
+        LinkTools linkTools = new(db, NullLogger<LinkTools>.Instance);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         dynamic saved = await linkTools.SaveLink("https://example.com", "Test Link", cancellationToken: ct);
 
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
         dynamic result = await tools.TagItem(
             itemId: ((Guid)saved.Id).ToString(),
             tagName: "nonexistent",
@@ -120,7 +121,7 @@ public class TagToolsTests
     [Fact]
     public async Task TagItem_InvalidItemId_ReturnsError()
     {
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
 
         dynamic result = await tools.TagItem(
             itemId: "not-a-guid",
@@ -133,7 +134,7 @@ public class TagToolsTests
     [Fact]
     public async Task TagItem_NonExistentItem_ReturnsError()
     {
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
 
         dynamic result = await tools.TagItem(
             itemId: Guid.NewGuid().ToString(),
@@ -146,12 +147,12 @@ public class TagToolsTests
     [Fact]
     public async Task TagItem_InvalidAction_ReturnsError()
     {
-        LinkTools linkTools = new(db);
+        LinkTools linkTools = new(db, NullLogger<LinkTools>.Instance);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         dynamic saved = await linkTools.SaveLink("https://example.com", "Test Link", cancellationToken: ct);
 
-        TagTools tools = new(db);
+        TagTools tools = new(db, NullLogger<TagTools>.Instance);
         dynamic result = await tools.TagItem(
             itemId: ((Guid)saved.Id).ToString(),
             tagName: "test",

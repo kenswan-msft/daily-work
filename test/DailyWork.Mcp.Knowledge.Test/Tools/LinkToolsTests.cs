@@ -1,5 +1,6 @@
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.Knowledge.Test.Tools;
 
@@ -10,7 +11,7 @@ public class LinkToolsTests
     [Fact]
     public async Task SaveLink_WithMinimalInput_ReturnsLinkWithDefaults()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic result = await tools.SaveLink(
             url: "https://example.com",
@@ -28,7 +29,7 @@ public class LinkToolsTests
     [Fact]
     public async Task SaveLink_WithAllFields_ReturnsCompleteLink()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic result = await tools.SaveLink(
             url: "https://learn.microsoft.com/aspire",
@@ -50,7 +51,7 @@ public class LinkToolsTests
     [Fact]
     public async Task GetLink_ExistingLink_ReturnsLink()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic saved = await tools.SaveLink(
             url: "https://example.com",
@@ -68,7 +69,7 @@ public class LinkToolsTests
     [Fact]
     public async Task GetLink_NonExistent_ReturnsError()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic result = await tools.GetLink(
             id: Guid.NewGuid().ToString(),
@@ -80,7 +81,7 @@ public class LinkToolsTests
     [Fact]
     public async Task GetLink_InvalidId_ReturnsError()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic result = await tools.GetLink(
             id: "not-a-guid",
@@ -92,7 +93,7 @@ public class LinkToolsTests
     [Fact]
     public async Task UpdateLink_ExistingLink_UpdatesFields()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic saved = await tools.SaveLink(
             url: "https://old.com",
@@ -114,7 +115,7 @@ public class LinkToolsTests
     [Fact]
     public async Task UpdateLink_NonExistent_ReturnsError()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic result = await tools.UpdateLink(
             id: Guid.NewGuid().ToString(),
@@ -127,7 +128,7 @@ public class LinkToolsTests
     [Fact]
     public async Task DeleteLink_ExistingLink_DeletesAndReturnsConfirmation()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic saved = await tools.SaveLink(
             url: "https://example.com",
@@ -151,7 +152,7 @@ public class LinkToolsTests
     [Fact]
     public async Task DeleteLink_NonExistent_ReturnsError()
     {
-        LinkTools tools = new(db);
+        LinkTools tools = new(db, NullLogger<LinkTools>.Instance);
 
         dynamic result = await tools.DeleteLink(
             id: Guid.NewGuid().ToString(),

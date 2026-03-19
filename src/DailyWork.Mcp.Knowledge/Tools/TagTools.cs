@@ -2,16 +2,19 @@ using System.ComponentModel;
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Knowledge.Tools;
 
 [McpServerToolType]
-public class TagTools(KnowledgeDbContext db)
+public class TagTools(KnowledgeDbContext db, ILogger<TagTools> logger)
 {
     [McpServerTool, Description("List all knowledge tags with counts of how many items use each tag")]
     public async Task<object[]> ListTags(CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Listing knowledge tags");
+
         List<KnowledgeTag> tags = await db.KnowledgeTags
             .Include(t => t.Items)
             .OrderBy(t => t.Name)
@@ -36,6 +39,8 @@ public class TagTools(KnowledgeDbContext db)
         string action = "add",
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Tagging item {ItemId} with '{TagName}' (action: {Action})", itemId, tagName, action);
+
         if (!Guid.TryParse(itemId, out Guid guid))
         {
             return new { Error = "Invalid item ID format" };
@@ -48,6 +53,7 @@ public class TagTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Knowledge item {ItemId} not found", itemId);
             return new { Error = "Knowledge item not found" };
         }
 

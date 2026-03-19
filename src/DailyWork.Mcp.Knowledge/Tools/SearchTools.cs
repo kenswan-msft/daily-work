@@ -2,12 +2,13 @@ using System.ComponentModel;
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Knowledge.Tools;
 
 [McpServerToolType]
-public class SearchTools(KnowledgeDbContext db)
+public class SearchTools(KnowledgeDbContext db, ILogger<SearchTools> logger)
 {
     [McpServerTool, Description("Search across all knowledge items (links, snippets, notes) by keyword. Searches title, description, content, URL, and tag names.")]
     public async Task<object[]> Search(
@@ -17,6 +18,8 @@ public class SearchTools(KnowledgeDbContext db)
         int limit = 20,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Searching knowledge base for '{Query}'", query);
+
         IQueryable<KnowledgeItem> items = db.KnowledgeItems
             .Include(i => i.Tags)
             .AsQueryable();
@@ -69,6 +72,8 @@ public class SearchTools(KnowledgeDbContext db)
         int limit = 20,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Listing items by tag '{TagName}'", tagName);
+
         IQueryable<KnowledgeItem> items = db.KnowledgeItems
             .Include(i => i.Tags)
             .Where(i => i.Tags.Any(t => t.Name == tagName));
@@ -107,6 +112,8 @@ public class SearchTools(KnowledgeDbContext db)
         int limit = 10,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Listing {Count} recent knowledge items", limit);
+
         IQueryable<KnowledgeItem> items = db.KnowledgeItems
             .Include(i => i.Tags)
             .AsQueryable();

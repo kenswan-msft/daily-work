@@ -2,12 +2,13 @@ using System.ComponentModel;
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Knowledge.Tools;
 
 [McpServerToolType]
-public class LinkTools(KnowledgeDbContext db)
+public class LinkTools(KnowledgeDbContext db, ILogger<LinkTools> logger)
 {
     [McpServerTool, Description("Save a URL/link with title, description, category, and tags to the knowledge base")]
     public async Task<object> SaveLink(
@@ -18,6 +19,8 @@ public class LinkTools(KnowledgeDbContext db)
         string[]? tags = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Saving link '{Title}' ({Url})", title, url);
+
         KnowledgeItem item = new()
         {
             Id = Guid.NewGuid(),
@@ -59,6 +62,8 @@ public class LinkTools(KnowledgeDbContext db)
         string id,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Retrieving link {LinkId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -71,6 +76,7 @@ public class LinkTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Link {LinkId} not found", id);
             return new { Error = "Link not found" };
         }
 
@@ -97,6 +103,8 @@ public class LinkTools(KnowledgeDbContext db)
         string? category = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Updating link {LinkId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -109,6 +117,7 @@ public class LinkTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Link {LinkId} not found", id);
             return new { Error = "Link not found" };
         }
 
@@ -154,6 +163,8 @@ public class LinkTools(KnowledgeDbContext db)
         string id,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Deleting link {LinkId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -165,6 +176,7 @@ public class LinkTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Link {LinkId} not found", id);
             return new { Error = "Link not found" };
         }
 

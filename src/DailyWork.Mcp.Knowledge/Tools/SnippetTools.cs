@@ -2,12 +2,13 @@ using System.ComponentModel;
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Knowledge.Tools;
 
 [McpServerToolType]
-public class SnippetTools(KnowledgeDbContext db)
+public class SnippetTools(KnowledgeDbContext db, ILogger<SnippetTools> logger)
 {
     [McpServerTool, Description("Save a code snippet with title, content, language, description, and tags to the knowledge base")]
     public async Task<object> SaveSnippet(
@@ -18,6 +19,8 @@ public class SnippetTools(KnowledgeDbContext db)
         string[]? tags = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Saving snippet '{Title}' in {Language}", title, language);
+
         KnowledgeItem item = new()
         {
             Id = Guid.NewGuid(),
@@ -59,6 +62,8 @@ public class SnippetTools(KnowledgeDbContext db)
         string id,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Retrieving snippet {SnippetId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -71,6 +76,7 @@ public class SnippetTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Snippet {SnippetId} not found", id);
             return new { Error = "Snippet not found" };
         }
 
@@ -97,6 +103,8 @@ public class SnippetTools(KnowledgeDbContext db)
         string? description = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Updating snippet {SnippetId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -109,6 +117,7 @@ public class SnippetTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Snippet {SnippetId} not found", id);
             return new { Error = "Snippet not found" };
         }
 
@@ -154,6 +163,8 @@ public class SnippetTools(KnowledgeDbContext db)
         string id,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Deleting snippet {SnippetId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -165,6 +176,7 @@ public class SnippetTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Snippet {SnippetId} not found", id);
             return new { Error = "Snippet not found" };
         }
 

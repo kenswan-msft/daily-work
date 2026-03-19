@@ -2,12 +2,13 @@ using System.ComponentModel;
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Knowledge.Tools;
 
 [McpServerToolType]
-public class NoteTools(KnowledgeDbContext db)
+public class NoteTools(KnowledgeDbContext db, ILogger<NoteTools> logger)
 {
     [McpServerTool, Description("Save a free-form note with markdown support to the knowledge base")]
     public async Task<object> SaveNote(
@@ -17,6 +18,8 @@ public class NoteTools(KnowledgeDbContext db)
         string[]? tags = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Saving note '{Title}'", title);
+
         KnowledgeItem item = new()
         {
             Id = Guid.NewGuid(),
@@ -56,6 +59,8 @@ public class NoteTools(KnowledgeDbContext db)
         string id,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Retrieving note {NoteId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -68,6 +73,7 @@ public class NoteTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Note {NoteId} not found", id);
             return new { Error = "Note not found" };
         }
 
@@ -92,6 +98,8 @@ public class NoteTools(KnowledgeDbContext db)
         string? description = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Updating note {NoteId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -104,6 +112,7 @@ public class NoteTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Note {NoteId} not found", id);
             return new { Error = "Note not found" };
         }
 
@@ -143,6 +152,8 @@ public class NoteTools(KnowledgeDbContext db)
         string id,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Deleting note {NoteId}", id);
+
         if (!Guid.TryParse(id, out Guid guid))
         {
             return new { Error = "Invalid ID format" };
@@ -154,6 +165,7 @@ public class NoteTools(KnowledgeDbContext db)
 
         if (item is null)
         {
+            logger.LogWarning("Note {NoteId} not found", id);
             return new { Error = "Note not found" };
         }
 

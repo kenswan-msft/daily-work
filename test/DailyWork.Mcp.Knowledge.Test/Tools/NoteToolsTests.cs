@@ -1,5 +1,6 @@
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.Knowledge.Test.Tools;
 
@@ -10,7 +11,7 @@ public class NoteToolsTests
     [Fact]
     public async Task SaveNote_WithMinimalInput_ReturnsNoteWithDefaults()
     {
-        NoteTools tools = new(db);
+        NoteTools tools = new(db, NullLogger<NoteTools>.Instance);
 
         dynamic result = await tools.SaveNote(
             title: "Meeting Notes",
@@ -27,7 +28,7 @@ public class NoteToolsTests
     [Fact]
     public async Task SaveNote_WithAllFields_ReturnsCompleteNote()
     {
-        NoteTools tools = new(db);
+        NoteTools tools = new(db, NullLogger<NoteTools>.Instance);
 
         dynamic result = await tools.SaveNote(
             title: "Architecture Decision",
@@ -44,7 +45,7 @@ public class NoteToolsTests
     [Fact]
     public async Task GetNote_ExistingNote_ReturnsNote()
     {
-        NoteTools tools = new(db);
+        NoteTools tools = new(db, NullLogger<NoteTools>.Instance);
 
         dynamic saved = await tools.SaveNote(
             title: "Test Note",
@@ -62,7 +63,7 @@ public class NoteToolsTests
     [Fact]
     public async Task GetNote_NonExistent_ReturnsError()
     {
-        NoteTools tools = new(db);
+        NoteTools tools = new(db, NullLogger<NoteTools>.Instance);
 
         dynamic result = await tools.GetNote(
             id: Guid.NewGuid().ToString(),
@@ -74,7 +75,7 @@ public class NoteToolsTests
     [Fact]
     public async Task UpdateNote_ExistingNote_UpdatesFields()
     {
-        NoteTools tools = new(db);
+        NoteTools tools = new(db, NullLogger<NoteTools>.Instance);
 
         dynamic saved = await tools.SaveNote(
             title: "Old Note",
@@ -96,7 +97,7 @@ public class NoteToolsTests
     [Fact]
     public async Task DeleteNote_ExistingNote_DeletesAndReturnsConfirmation()
     {
-        NoteTools tools = new(db);
+        NoteTools tools = new(db, NullLogger<NoteTools>.Instance);
 
         dynamic saved = await tools.SaveNote(
             title: "To Delete",

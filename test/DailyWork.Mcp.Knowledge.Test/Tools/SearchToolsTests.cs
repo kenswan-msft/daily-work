@@ -1,5 +1,6 @@
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.Knowledge.Test.Tools;
 
@@ -11,7 +12,7 @@ public class SearchToolsTests
     public async Task Search_ByTitle_FindsMatchingItems()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.Search(
             query: "Aspire",
@@ -25,7 +26,7 @@ public class SearchToolsTests
     public async Task Search_ByContent_FindsMatchingItems()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.Search(
             query: "Console.WriteLine",
@@ -39,7 +40,7 @@ public class SearchToolsTests
     public async Task Search_ByDescription_FindsMatchingItems()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.Search(
             query: "health check endpoints",
@@ -52,7 +53,7 @@ public class SearchToolsTests
     public async Task Search_FilteredByType_ReturnsOnlyMatchingType()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.Search(
             query: "e",
@@ -66,7 +67,7 @@ public class SearchToolsTests
     public async Task Search_NoResults_ReturnsEmptyArray()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.Search(
             query: "nonexistentxyzterm",
@@ -79,7 +80,7 @@ public class SearchToolsTests
     public async Task Search_RespectsLimit()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.Search(
             query: "e",
@@ -93,7 +94,7 @@ public class SearchToolsTests
     public async Task ListByTag_ReturnsItemsWithTag()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.ListByTag(
             tagName: "dotnet",
@@ -106,7 +107,7 @@ public class SearchToolsTests
     public async Task ListByTag_FilteredByType_ReturnsOnlyMatchingType()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.ListByTag(
             tagName: "dotnet",
@@ -121,7 +122,7 @@ public class SearchToolsTests
     public async Task ListByTag_NoMatches_ReturnsEmpty()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.ListByTag(
             tagName: "nonexistenttag",
@@ -134,7 +135,7 @@ public class SearchToolsTests
     public async Task ListRecent_ReturnsItemsInDescendingOrder()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.ListRecent(
             cancellationToken: TestContext.Current.CancellationToken);
@@ -146,7 +147,7 @@ public class SearchToolsTests
     public async Task ListRecent_FilteredByType_ReturnsOnlyMatchingType()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.ListRecent(
             type: "Snippet",
@@ -159,7 +160,7 @@ public class SearchToolsTests
     public async Task ListRecent_RespectsLimit()
     {
         await SeedItemsAsync();
-        SearchTools tools = new(db);
+        SearchTools tools = new(db, NullLogger<SearchTools>.Instance);
 
         object[] results = await tools.ListRecent(
             limit: 1,
@@ -170,9 +171,9 @@ public class SearchToolsTests
 
     private async Task SeedItemsAsync()
     {
-        LinkTools linkTools = new(db);
-        SnippetTools snippetTools = new(db);
-        NoteTools noteTools = new(db);
+        LinkTools linkTools = new(db, NullLogger<LinkTools>.Instance);
+        SnippetTools snippetTools = new(db, NullLogger<SnippetTools>.Instance);
+        NoteTools noteTools = new(db, NullLogger<NoteTools>.Instance);
 
         CancellationToken ct = TestContext.Current.CancellationToken;
 

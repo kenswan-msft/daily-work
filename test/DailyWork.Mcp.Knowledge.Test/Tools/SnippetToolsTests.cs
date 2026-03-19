@@ -1,5 +1,6 @@
 using DailyWork.Mcp.Knowledge.Data;
 using DailyWork.Mcp.Knowledge.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.Knowledge.Test.Tools;
 
@@ -10,7 +11,7 @@ public class SnippetToolsTests
     [Fact]
     public async Task SaveSnippet_WithMinimalInput_ReturnsSnippetWithDefaults()
     {
-        SnippetTools tools = new(db);
+        SnippetTools tools = new(db, NullLogger<SnippetTools>.Instance);
 
         dynamic result = await tools.SaveSnippet(
             title: "Hello World",
@@ -28,7 +29,7 @@ public class SnippetToolsTests
     [Fact]
     public async Task SaveSnippet_WithAllFields_ReturnsCompleteSnippet()
     {
-        SnippetTools tools = new(db);
+        SnippetTools tools = new(db, NullLogger<SnippetTools>.Instance);
 
         dynamic result = await tools.SaveSnippet(
             title: "EF Core Migration",
@@ -47,7 +48,7 @@ public class SnippetToolsTests
     [Fact]
     public async Task GetSnippet_ExistingSnippet_ReturnsSnippet()
     {
-        SnippetTools tools = new(db);
+        SnippetTools tools = new(db, NullLogger<SnippetTools>.Instance);
 
         dynamic saved = await tools.SaveSnippet(
             title: "Test Snippet",
@@ -65,7 +66,7 @@ public class SnippetToolsTests
     [Fact]
     public async Task GetSnippet_NonExistent_ReturnsError()
     {
-        SnippetTools tools = new(db);
+        SnippetTools tools = new(db, NullLogger<SnippetTools>.Instance);
 
         dynamic result = await tools.GetSnippet(
             id: Guid.NewGuid().ToString(),
@@ -77,7 +78,7 @@ public class SnippetToolsTests
     [Fact]
     public async Task UpdateSnippet_ExistingSnippet_UpdatesFields()
     {
-        SnippetTools tools = new(db);
+        SnippetTools tools = new(db, NullLogger<SnippetTools>.Instance);
 
         dynamic saved = await tools.SaveSnippet(
             title: "Old Snippet",
@@ -99,7 +100,7 @@ public class SnippetToolsTests
     [Fact]
     public async Task DeleteSnippet_ExistingSnippet_DeletesAndReturnsConfirmation()
     {
-        SnippetTools tools = new(db);
+        SnippetTools tools = new(db, NullLogger<SnippetTools>.Instance);
 
         dynamic saved = await tools.SaveSnippet(
             title: "To Delete",
