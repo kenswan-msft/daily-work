@@ -4,6 +4,7 @@ using DailyWork.Agents.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DailyWork.Agents.Data.Migrations
 {
     [DbContext(typeof(ConversationsDbContext))]
-    partial class ConversationsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260319213427_AddChatMessageToolCalls")]
+    partial class AddChatMessageToolCalls
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -179,6 +179,116 @@ public class ChatMessageStoreTests
         Assert.Empty(verifyContext.ChatMessages);
     }
 
+    [Fact]
+    public async Task InvokedAsync_WithToolCalls_StoresToToolCallTable()
+    {
+        const string conversationId = "conv-tools-1";
+        string dbName = Guid.NewGuid().ToString();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory = CreateDbContextFactory(dbName);
+        ChatMessageStore store = CreateStore(dbContextFactory);
+        AgentSession session = CreateSessionWithConversationId(conversationId);
+
+        var assistantMessage = new ChatMessage(ChatRole.Assistant, [
+            new FunctionCallContent("call-1", "get_weather",
+                new Dictionary<string, object?> { ["city"] = "Seattle" })
+        ]);
+
+        var toolMessage = new ChatMessage(ChatRole.Tool, [
+            new FunctionResultContent("call-1", """{"temp":72}""")
+        ]);
+
+        var context = new ChatHistoryProvider.InvokedContext(
+            new StubAgent(), session,
+            [new ChatMessage(ChatRole.User, "What's the weather?")],
+            [assistantMessage, toolMessage]);
+
+        await store.InvokedAsync(context, TestContext.Current.CancellationToken);
+
+        // Allow fire-and-forget task to complete
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+
+        using ConversationsDbContext verifyContext = dbContextFactory.CreateDbContext();
+        List<ChatMessageToolCallEntity> toolCalls = await verifyContext.ChatMessageToolCalls
+            .Where(tc => tc.ConversationId == conversationId)
+            .OrderBy(tc => tc.Timestamp)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, toolCalls.Count);
+
+        ChatMessageToolCallEntity call = toolCalls[0];
+        Assert.Equal("get_weather", call.ToolName);
+        Assert.Contains("Seattle", call.Arguments!);
+        Assert.Null(call.Result);
+        Assert.False(call.IsError);
+
+        ChatMessageToolCallEntity result = toolCalls[1];
+        Assert.Equal("get_weather", result.ToolName);
+        Assert.Null(result.Arguments);
+        Assert.Contains("72", result.Result!);
+        Assert.False(result.IsError);
+    }
+
+    [Fact]
+    public async Task InvokedAsync_WithToolCallError_SetsIsError()
+    {
+        const string conversationId = "conv-tools-err";
+        string dbName = Guid.NewGuid().ToString();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory = CreateDbContextFactory(dbName);
+        ChatMessageStore store = CreateStore(dbContextFactory);
+        AgentSession session = CreateSessionWithConversationId(conversationId);
+
+        var assistantMessage = new ChatMessage(ChatRole.Assistant, [
+            new FunctionCallContent("call-err", "failing_tool")
+        ]);
+
+        var toolMessage = new ChatMessage(ChatRole.Tool, [
+            new FunctionResultContent("call-err", result: null)
+            {
+                Exception = new InvalidOperationException("Tool failed")
+            }
+        ]);
+
+        var context = new ChatHistoryProvider.InvokedContext(
+            new StubAgent(), session,
+            [],
+            [assistantMessage, toolMessage]);
+
+        await store.InvokedAsync(context, TestContext.Current.CancellationToken);
+
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+
+        using ConversationsDbContext verifyContext = dbContextFactory.CreateDbContext();
+        List<ChatMessageToolCallEntity> toolCalls = await verifyContext.ChatMessageToolCalls
+            .Where(tc => tc.ConversationId == conversationId)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        ChatMessageToolCallEntity errorResult = Assert.Single(toolCalls, tc => tc.IsError);
+        Assert.Equal("failing_tool", errorResult.ToolName);
+        Assert.Equal("Tool failed", errorResult.Result);
+    }
+
+    [Fact]
+    public async Task InvokedAsync_WithoutToolCalls_NoToolCallEntities()
+    {
+        const string conversationId = "conv-no-tools";
+        string dbName = Guid.NewGuid().ToString();
+        IDbContextFactory<ConversationsDbContext> dbContextFactory = CreateDbContextFactory(dbName);
+        ChatMessageStore store = CreateStore(dbContextFactory);
+        AgentSession session = CreateSessionWithConversationId(conversationId);
+
+        var context = new ChatHistoryProvider.InvokedContext(
+            new StubAgent(), session,
+            [new ChatMessage(ChatRole.User, "hello")],
+            [new ChatMessage(ChatRole.Assistant, "hi there")]);
+
+        await store.InvokedAsync(context, TestContext.Current.CancellationToken);
+
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        using ConversationsDbContext verifyContext = dbContextFactory.CreateDbContext();
+        Assert.Empty(verifyContext.ChatMessageToolCalls);
+    }
+
     private static IDbContextFactory<ConversationsDbContext> CreateDbContextFactory(string dbName)
     {
         DbContextOptions<ConversationsDbContext> options = new DbContextOptionsBuilder<ConversationsDbContext>()

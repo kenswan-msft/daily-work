@@ -163,6 +163,13 @@ public class ChatMessageStore(
 
         // Update conversation metadata (fire-and-forget for title generation)
         _ = UpdateConversationMetadataAsync(conversationId, allNewMessages, existingMessageIds);
+
+        // Store tool calls for observability (fire-and-forget)
+        var allMessages = context.RequestMessages
+            .Concat(context.ResponseMessages ?? [])
+            .ToList();
+
+        _ = StoreToolCallsAsync(conversationId, allMessages);
     }
 
     private async Task UpdateConversationMetadataAsync(
@@ -234,6 +241,85 @@ public class ChatMessageStore(
             logger.LogWarning(
                 ex,
                 "Failed to generate AI title for conversation {ConversationId}",
+                conversationId);
+        }
+    }
+
+    private async Task StoreToolCallsAsync(string conversationId, List<ChatMessage> messages)
+    {
+        try
+        {
+            var entities = new List<ChatMessageToolCallEntity>();
+
+            // Collect call names by CallId so results can resolve the tool name
+            var toolNamesByCallId = new Dictionary<string, string>();
+
+            foreach (ChatMessage message in messages)
+            {
+                foreach (AIContent content in message.Contents)
+                {
+                    if (content is FunctionCallContent functionCall)
+                    {
+                        if (!string.IsNullOrEmpty(functionCall.CallId))
+                        {
+                            toolNamesByCallId[functionCall.CallId] = functionCall.Name;
+                        }
+
+                        entities.Add(new ChatMessageToolCallEntity
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            ConversationId = conversationId,
+                            ToolName = functionCall.Name,
+                            Arguments = functionCall.Arguments is not null
+                                ? JsonSerializer.Serialize(functionCall.Arguments)
+                                : null,
+                            IsError = false,
+                            Timestamp = DateTime.UtcNow
+                        });
+                    }
+                    else if (content is FunctionResultContent functionResult)
+                    {
+                        string toolName = functionResult.CallId is not null
+                            && toolNamesByCallId.TryGetValue(functionResult.CallId, out string? name)
+                                ? name
+                                : "unknown";
+
+                        entities.Add(new ChatMessageToolCallEntity
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            ConversationId = conversationId,
+                            ToolName = toolName,
+                            Result = functionResult.Exception is not null
+                                ? functionResult.Exception.Message
+                                : functionResult.Result?.ToString(),
+                            IsError = functionResult.Exception is not null,
+                            Timestamp = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+
+            if (entities.Count == 0)
+            {
+                return;
+            }
+
+            using ConversationsDbContext dbContext =
+                await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+
+            dbContext.ChatMessageToolCalls.AddRange(entities);
+            await dbContext.SaveChangesAsync().ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Stored {Count} tool call records for conversation {ConversationId}",
+                entities.Count,
+                conversationId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to store tool calls for conversation {ConversationId}",
                 conversationId);
         }
     }

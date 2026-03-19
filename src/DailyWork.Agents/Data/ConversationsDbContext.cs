@@ -10,6 +10,8 @@ public class ConversationsDbContext(DbContextOptions<ConversationsDbContext> opt
 
     public DbSet<ConversationMetadataEntity> ConversationMetadata => Set<ConversationMetadataEntity>();
 
+    public DbSet<ChatMessageToolCallEntity> ChatMessageToolCalls => Set<ChatMessageToolCallEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ChatMessageEntity>(entity =>
@@ -46,6 +48,24 @@ public class ConversationsDbContext(DbContextOptions<ConversationsDbContext> opt
 
             entity.HasIndex(e => e.LastMessageAt)
                 .IsDescending();
+        });
+
+        modelBuilder.Entity<ChatMessageToolCallEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasMaxLength(255);
+
+            entity.Property(e => e.ConversationId)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(e => e.ToolName)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.HasIndex(e => new { e.ConversationId, e.Timestamp });
         });
     }
 }
