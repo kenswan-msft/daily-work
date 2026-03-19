@@ -110,6 +110,18 @@ public class ChatMessageStore(
             .Where(message => !string.IsNullOrWhiteSpace(message.Text))
             .ToList();
 
+        foreach (ChatMessage message in allNewMessages)
+        {
+            string preview = message.Text?.Length > 200
+                ? string.Concat(message.Text.AsSpan(0, 200), "…")
+                : message.Text ?? string.Empty;
+
+            logger.LogDebug(
+                "[{Role}] {Preview}",
+                message.Role.Value,
+                preview);
+        }
+
         HashSet<string> existingMessageIds = await GetExistingMessageIdsAsync(
             conversationId,
             allNewMessages

@@ -2,6 +2,7 @@ using DailyWork.Mcp.FileSystem.Configuration;
 using DailyWork.Mcp.FileSystem.Data;
 using DailyWork.Mcp.FileSystem.Services;
 using DailyWork.Mcp.FileSystem.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace DailyWork.Mcp.FileSystem.Test.Tools;
@@ -34,8 +35,8 @@ public class FileSystemToolsTests : IDisposable
             AllowedDirectories = allowedDirs ?? [tempDir]
         };
 
-        FileSystemService service = new(db, Options.Create(options));
-        return new FileSystemTools(service);
+        FileSystemService service = new(db, Options.Create(options), NullLogger<FileSystemService>.Instance);
+        return new FileSystemTools(service, NullLogger<FileSystemTools>.Instance);
     }
 
     [Fact]

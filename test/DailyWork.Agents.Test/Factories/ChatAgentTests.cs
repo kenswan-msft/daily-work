@@ -6,6 +6,7 @@ using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace DailyWork.Agents.Test.Factories;
@@ -36,7 +37,7 @@ public class ChatAgentTests
         AITool knowledgeAgentTool = Substitute.For<AITool>();
         AITool microsoftDocsAgentTool = Substitute.For<AITool>();
         AITool fileSystemAgentTool = Substitute.For<AITool>();
-        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool);
+        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, NullLoggerFactory.Instance);
 
         AIAgent agent = sut.Create();
 

@@ -2,12 +2,14 @@ using DailyWork.Agents.Clients;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace DailyWork.Agents.Factories;
 
 public sealed class MicrosoftDocsAgent(
     IChatClient chatClient,
-    [FromKeyedServices(McpClientKeys.MicrosoftDocs)] IList<AITool> mcpTools) : IAgentFactory
+    [FromKeyedServices(McpClientKeys.MicrosoftDocs)] IList<AITool> mcpTools,
+    ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "microsoft-docs";
 
@@ -46,5 +48,6 @@ public sealed class MicrosoftDocsAgent(
                     Instructions = Instructions,
                     Tools = [.. mcpTools]
                 }
-            });
+            },
+            loggerFactory: loggerFactory);
 }

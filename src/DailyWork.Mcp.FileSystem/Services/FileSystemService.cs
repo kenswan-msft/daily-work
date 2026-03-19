@@ -1,13 +1,15 @@
 using DailyWork.Mcp.FileSystem.Configuration;
 using DailyWork.Mcp.FileSystem.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DailyWork.Mcp.FileSystem.Services;
 
 public class FileSystemService(
     FileSystemDbContext db,
-    IOptions<FileSystemOptions> options)
+    IOptions<FileSystemOptions> options,
+    ILogger<FileSystemService> logger)
 {
     private readonly FileSystemOptions config = options.Value;
 
@@ -15,6 +17,8 @@ public class FileSystemService(
         string path,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Validating path '{Path}'", path);
+
         string resolvedPath;
         try
         {
@@ -22,6 +26,7 @@ public class FileSystemService(
         }
         catch (Exception ex)
         {
+            logger.LogWarning("Invalid path '{Path}': {Error}", path, ex.Message);
             return PathValidationResult.Denied($"Invalid path: {ex.Message}", requestedPath: path);
         }
 
@@ -44,6 +49,7 @@ public class FileSystemService(
             ? Path.GetDirectoryName(resolvedPath) ?? resolvedPath
             : resolvedPath;
 
+        logger.LogWarning("Access denied for path '{ResolvedPath}'", resolvedPath);
         return PathValidationResult.Denied(
             $"Access denied. The path '{resolvedPath}' is not within any allowed directory.",
             requiresAccess: containingDirectory);
@@ -54,10 +60,13 @@ public class FileSystemService(
         int? maxLines = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Reading file '{FilePath}'", resolvedPath);
+
         FileInfo fileInfo = new(resolvedPath);
 
         if (!fileInfo.Exists)
         {
+            logger.LogWarning("File not found: '{FilePath}'", resolvedPath);
             return new { Error = $"File not found: {resolvedPath}" };
         }
 
@@ -123,8 +132,11 @@ public class FileSystemService(
         string? searchPattern = null,
         bool recursive = false)
     {
+        logger.LogInformation("Listing directory '{DirectoryPath}' with pattern '{SearchPattern}'", resolvedPath, searchPattern);
+
         if (!Directory.Exists(resolvedPath))
         {
+            logger.LogWarning("Directory not found: '{DirectoryPath}'", resolvedPath);
             return Task.FromResult<object>(new { Error = $"Directory not found: {resolvedPath}" });
         }
 
@@ -171,6 +183,8 @@ public class FileSystemService(
 
     public Task<object> GetFileInfoAsync(string resolvedPath)
     {
+        logger.LogInformation("Getting file info for '{FilePath}'", resolvedPath);
+
         if (Directory.Exists(resolvedPath))
         {
             DirectoryInfo dirInfo = new(resolvedPath);
@@ -186,6 +200,7 @@ public class FileSystemService(
 
         if (!File.Exists(resolvedPath))
         {
+            logger.LogWarning("Path not found: '{FilePath}'", resolvedPath);
             return Task.FromResult<object>(new { Error = $"Path not found: {resolvedPath}" });
         }
 
@@ -221,8 +236,11 @@ public class FileSystemService(
         string searchTerm,
         string? filePattern = null)
     {
+        logger.LogInformation("Searching for '{SearchTerm}' in '{DirectoryPath}' with pattern '{FilePattern}'", searchTerm, resolvedPath, filePattern);
+
         if (!Directory.Exists(resolvedPath))
         {
+            logger.LogWarning("Directory not found: '{DirectoryPath}'", resolvedPath);
             return Task.FromResult<object>(new { Error = $"Directory not found: {resolvedPath}" });
         }
 

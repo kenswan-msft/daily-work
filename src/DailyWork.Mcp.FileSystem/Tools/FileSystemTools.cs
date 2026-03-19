@@ -1,11 +1,12 @@
 using System.ComponentModel;
 using DailyWork.Mcp.FileSystem.Services;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.FileSystem.Tools;
 
 [McpServerToolType]
-public class FileSystemTools(FileSystemService fileSystem)
+public class FileSystemTools(FileSystemService fileSystem, ILogger<FileSystemTools> logger)
 {
     [McpServerTool, Description("Read the contents of a file. Returns file content as text. Use maxLines to limit output for large files.")]
     public async Task<object> ReadFile(
@@ -13,6 +14,8 @@ public class FileSystemTools(FileSystemService fileSystem)
         int? maxLines = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Reading file '{FilePath}'", filePath);
+
         PathValidationResult validation = await fileSystem
             .ValidateAndResolvePathAsync(filePath, cancellationToken)
             .ConfigureAwait(false);
@@ -34,6 +37,8 @@ public class FileSystemTools(FileSystemService fileSystem)
         bool recursive = false,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Listing files in '{DirectoryPath}' with pattern '{SearchPattern}'", directoryPath, searchPattern);
+
         PathValidationResult validation = await fileSystem
             .ValidateAndResolvePathAsync(directoryPath, cancellationToken)
             .ConfigureAwait(false);
@@ -53,6 +58,8 @@ public class FileSystemTools(FileSystemService fileSystem)
         string filePath,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Getting file info for '{FilePath}'", filePath);
+
         PathValidationResult validation = await fileSystem
             .ValidateAndResolvePathAsync(filePath, cancellationToken)
             .ConfigureAwait(false);
@@ -74,6 +81,8 @@ public class FileSystemTools(FileSystemService fileSystem)
         string? filePattern = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Searching for '{SearchTerm}' in '{DirectoryPath}'", searchTerm, directoryPath);
+
         PathValidationResult validation = await fileSystem
             .ValidateAndResolvePathAsync(directoryPath, cancellationToken)
             .ConfigureAwait(false);

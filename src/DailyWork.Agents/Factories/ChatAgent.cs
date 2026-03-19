@@ -2,6 +2,7 @@ using DailyWork.Agents.Messages;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace DailyWork.Agents.Factories;
 
@@ -12,7 +13,8 @@ public sealed class ChatAgent(
     [FromKeyedServices(AgentKeys.Blackjack)] AITool blackjackAgentTool,
     [FromKeyedServices(AgentKeys.Knowledge)] AITool knowledgeAgentTool,
     [FromKeyedServices(AgentKeys.MicrosoftDocs)] AITool microsoftDocsAgentTool,
-    [FromKeyedServices(AgentKeys.FileSystem)] AITool fileSystemAgentTool) : IAgentFactory
+    [FromKeyedServices(AgentKeys.FileSystem)] AITool fileSystemAgentTool,
+    ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "chat";
 
@@ -63,5 +65,6 @@ public sealed class ChatAgent(
                     Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
-            });
+            },
+            loggerFactory: loggerFactory);
 }

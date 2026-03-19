@@ -3,12 +3,13 @@ using DailyWork.Mcp.Blackjack.Data;
 using DailyWork.Mcp.Blackjack.Entities;
 using DailyWork.Mcp.Blackjack.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Blackjack.Tools;
 
 [McpServerToolType]
-public class BlackjackTools(BlackjackDbContext db)
+public class BlackjackTools(BlackjackDbContext db, ILogger<BlackjackTools> logger)
 {
     // Fixed player ID for single-player system
     internal static readonly Guid DefaultPlayerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
@@ -16,6 +17,8 @@ public class BlackjackTools(BlackjackDbContext db)
     [McpServerTool, Description("Get the current player balance. Creates a new player with $200 if none exists.")]
     public async Task<object> GetBalance(CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Getting player balance");
+
         Player player = await GetOrCreatePlayerAsync(cancellationToken).ConfigureAwait(false);
 
         return new
@@ -30,6 +33,8 @@ public class BlackjackTools(BlackjackDbContext db)
         decimal betAmount,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Starting new blackjack game with bet {BetAmount}", betAmount);
+
         Player player = await GetOrCreatePlayerAsync(cancellationToken).ConfigureAwait(false);
 
         if (betAmount <= 0)
@@ -103,6 +108,8 @@ public class BlackjackTools(BlackjackDbContext db)
         string gameId,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Player hits on game {GameId}", gameId);
+
         Game? game = await db.Games
             .Include(g => g.Player)
             .FirstOrDefaultAsync(g => g.Id == Guid.Parse(gameId), cancellationToken)
@@ -110,6 +117,7 @@ public class BlackjackTools(BlackjackDbContext db)
 
         if (game is null)
         {
+            logger.LogWarning("Game {GameId} not found", gameId);
             return new { Error = $"Game with ID '{gameId}' not found." };
         }
 
@@ -135,6 +143,7 @@ public class BlackjackTools(BlackjackDbContext db)
 
         if (BlackjackGameService.IsBust(playerScore))
         {
+            logger.LogInformation("Player busted on game {GameId} with score {PlayerScore}", gameId, playerScore);
             game.Status = GameStatus.PlayerBust;
             game.CompletedAt = DateTime.UtcNow;
             game.Payout = 0m;
@@ -172,6 +181,8 @@ public class BlackjackTools(BlackjackDbContext db)
         string gameId,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Player stands on game {GameId}", gameId);
+
         Game? game = await db.Games
             .Include(g => g.Player)
             .FirstOrDefaultAsync(g => g.Id == Guid.Parse(gameId), cancellationToken)
@@ -179,6 +190,7 @@ public class BlackjackTools(BlackjackDbContext db)
 
         if (game is null)
         {
+            logger.LogWarning("Game {GameId} not found", gameId);
             return new { Error = $"Game with ID '{gameId}' not found." };
         }
 
@@ -199,6 +211,10 @@ public class BlackjackTools(BlackjackDbContext db)
             playerScore, dealerScore, playerHand, finalDealerHand);
 
         decimal payout = BlackjackGameService.CalculatePayout(game.BetAmount, outcome);
+
+        logger.LogInformation(
+            "Game {GameId} resolved: {Outcome}, dealer score {DealerScore}, payout {Payout}",
+            gameId, outcome, dealerScore, payout);
 
         game.DealerHand = BlackjackGameService.SerializeCards(finalDealerHand);
         game.DealerScore = dealerScore;
@@ -230,6 +246,8 @@ public class BlackjackTools(BlackjackDbContext db)
         string gameId,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Getting status for game {GameId}", gameId);
+
         Game? game = await db.Games
             .AsNoTracking()
             .FirstOrDefaultAsync(g => g.Id == Guid.Parse(gameId), cancellationToken)
@@ -237,6 +255,7 @@ public class BlackjackTools(BlackjackDbContext db)
 
         if (game is null)
         {
+            logger.LogWarning("Game {GameId} not found", gameId);
             return new { Error = $"Game with ID '{gameId}' not found." };
         }
 
@@ -275,6 +294,8 @@ public class BlackjackTools(BlackjackDbContext db)
         int limit = 10,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Getting game history with limit {Limit}", limit);
+
         List<Game> games = await db.Games
             .Where(g => g.PlayerId == DefaultPlayerId)
             .OrderByDescending(g => g.CreatedAt)

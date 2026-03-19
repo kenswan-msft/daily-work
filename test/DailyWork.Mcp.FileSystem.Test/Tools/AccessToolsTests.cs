@@ -1,6 +1,7 @@
 using DailyWork.Mcp.FileSystem.Data;
 using DailyWork.Mcp.FileSystem.Entities;
 using DailyWork.Mcp.FileSystem.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.FileSystem.Test.Tools;
 
@@ -15,7 +16,7 @@ public class AccessToolsTests : IDisposable
         tempDir = Path.Combine(Path.GetTempPath(), $"dailywork-access-test-{Guid.NewGuid()}");
         Directory.CreateDirectory(tempDir);
         db = TestDbContextFactory.Create();
-        tools = new AccessTools(db);
+        tools = new AccessTools(db, NullLogger<AccessTools>.Instance);
     }
 
     public void Dispose()

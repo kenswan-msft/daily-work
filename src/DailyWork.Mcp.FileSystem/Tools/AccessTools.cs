@@ -3,12 +3,13 @@ using DailyWork.Mcp.FileSystem.Data;
 using DailyWork.Mcp.FileSystem.Entities;
 using DailyWork.Mcp.FileSystem.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.FileSystem.Tools;
 
 [McpServerToolType]
-public class AccessTools(FileSystemDbContext db)
+public class AccessTools(FileSystemDbContext db, ILogger<AccessTools> logger)
 {
     [McpServerTool, Description("Add a directory to the always-allowed list so files within it can be read in future requests. Call this when the user grants persistent access to a directory.")]
     public async Task<object> AllowDirectory(
@@ -16,6 +17,7 @@ public class AccessTools(FileSystemDbContext db)
         string? label = null,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Granting access to directory '{DirectoryPath}'", directoryPath);
         string resolvedPath;
         try
         {
@@ -69,6 +71,7 @@ public class AccessTools(FileSystemDbContext db)
         string directoryPath,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Revoking access to directory '{DirectoryPath}'", directoryPath);
         string resolvedPath;
         try
         {
@@ -106,6 +109,7 @@ public class AccessTools(FileSystemDbContext db)
     public async Task<object> ListAllowedDirectories(
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Listing allowed directories");
         List<AllowedDirectory> userGranted = await db.AllowedDirectories
             .OrderBy(d => d.Path)
             .ToListAsync(cancellationToken)

@@ -2,6 +2,7 @@ using DailyWork.Mcp.Blackjack.Data;
 using DailyWork.Mcp.Blackjack.Entities;
 using DailyWork.Mcp.Blackjack.Tools;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyWork.Mcp.Blackjack.Test.Tools;
 
@@ -12,7 +13,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task GetBalance_NewPlayer_Returns200()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.GetBalance(TestContext.Current.CancellationToken);
 
@@ -24,7 +25,7 @@ public class BlackjackToolsTests
     {
         db.Players.Add(new Player { Id = BlackjackTools.DefaultPlayerId, Balance = 150m });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.GetBalance(TestContext.Current.CancellationToken);
 
@@ -34,7 +35,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task StartGame_ValidBet_ReturnsInitialHands()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.StartGame(25m, TestContext.Current.CancellationToken);
 
@@ -50,7 +51,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task StartGame_InsufficientBalance_ReturnsError()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.StartGame(500m, TestContext.Current.CancellationToken);
 
@@ -60,7 +61,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task StartGame_ZeroBet_ReturnsError()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.StartGame(0m, TestContext.Current.CancellationToken);
 
@@ -70,7 +71,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task StartGame_NegativeBet_ReturnsError()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.StartGame(-10m, TestContext.Current.CancellationToken);
 
@@ -89,7 +90,7 @@ public class BlackjackToolsTests
             Status = GameStatus.InProgress
         });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.StartGame(25m, TestContext.Current.CancellationToken);
 
@@ -99,7 +100,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task StartGame_DeductsBetFromBalance()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         await tools.StartGame(25m, TestContext.Current.CancellationToken);
 
@@ -114,7 +115,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task Hit_ValidGame_ReturnsUpdatedHand()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
         dynamic startResult = await tools.StartGame(25m, TestContext.Current.CancellationToken);
 
         // Skip if the game was immediately resolved (blackjack)
@@ -137,7 +138,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task Hit_NonExistentGame_ReturnsError()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.Hit(Guid.NewGuid().ToString(), TestContext.Current.CancellationToken);
 
@@ -147,7 +148,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task Stand_ValidGame_ResolvesGame()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
         dynamic startResult = await tools.StartGame(25m, TestContext.Current.CancellationToken);
 
         if (HasProperty(startResult, "Status") &&
@@ -167,7 +168,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task Stand_NonExistentGame_ReturnsError()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.Stand(Guid.NewGuid().ToString(), TestContext.Current.CancellationToken);
 
@@ -177,7 +178,7 @@ public class BlackjackToolsTests
     [Fact]
     public async Task GetGameStatus_NonExistentGame_ReturnsError()
     {
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         dynamic result = await tools.GetGameStatus(
             Guid.NewGuid().ToString(), TestContext.Current.CancellationToken);
@@ -206,7 +207,7 @@ public class BlackjackToolsTests
             CompletedAt = DateTime.UtcNow
         });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         object[] results = await tools.GetGameHistory(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -229,7 +230,7 @@ public class BlackjackToolsTests
             });
         }
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var tools = new BlackjackTools(db);
+        var tools = new BlackjackTools(db, NullLogger<BlackjackTools>.Instance);
 
         object[] results = await tools.GetGameHistory(limit: 3, cancellationToken: TestContext.Current.CancellationToken);
 

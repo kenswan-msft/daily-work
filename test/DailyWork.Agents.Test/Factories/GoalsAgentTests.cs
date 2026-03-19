@@ -1,6 +1,7 @@
 using DailyWork.Agents.Factories;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace DailyWork.Agents.Test.Factories;
@@ -21,7 +22,7 @@ public class GoalsAgentTests
     {
         IChatClient chatClient = Substitute.For<IChatClient>();
         IList<AITool> mcpTools = [];
-        var sut = new GoalsAgent(chatClient, mcpTools);
+        var sut = new GoalsAgent(chatClient, mcpTools, NullLoggerFactory.Instance);
 
         AIAgent agent = sut.Create();
 

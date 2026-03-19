@@ -355,10 +355,14 @@ public class SpectreConsoleChatRenderer : IChatRenderer
                 break;
 
             case FunctionResultContent functionResultContent:
-                string resultText = functionResultContent.Exception is not null
-                    ? $"[red]✗ Exception: {Markup.Escape(functionResultContent.Exception.Message)}[/]"
-                    : $"[dim]✓ Result: {Markup.Escape(functionResultContent.Result?.ToString() ?? "")}[/]";
-                functionCallOutputs.Add(resultText);
+                // string resultText = functionResultContent.Exception is not null
+                //     ? $"[red]✗ Exception: {Markup.Escape(functionResultContent.Exception.Message)}[/]"
+                //     : $"[dim]✓ Result: {Markup.Escape(functionResultContent.Result?.ToString() ?? "")}[/]";
+                // functionCallOutputs.Add(resultText);
+                if (functionResultContent.Exception is not null)
+                {
+                    functionCallOutputs.Add($"[red]✗ Exception: {Markup.Escape(functionResultContent.Exception!.Message)}[/]");
+                }
                 break;
 
             case ErrorContent errorContent:

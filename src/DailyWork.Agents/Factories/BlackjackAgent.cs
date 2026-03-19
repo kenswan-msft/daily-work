@@ -2,12 +2,14 @@ using DailyWork.Agents.Clients;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace DailyWork.Agents.Factories;
 
 public sealed class BlackjackAgent(
     IChatClient chatClient,
-    [FromKeyedServices(McpClientKeys.Blackjack)] IList<AITool> mcpTools) : IAgentFactory
+    [FromKeyedServices(McpClientKeys.Blackjack)] IList<AITool> mcpTools,
+    ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "blackjack";
 
@@ -40,5 +42,6 @@ public sealed class BlackjackAgent(
                     Instructions = Instructions,
                     Tools = [.. mcpTools]
                 }
-            });
+            },
+            loggerFactory: loggerFactory);
 }

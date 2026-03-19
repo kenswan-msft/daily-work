@@ -2,6 +2,7 @@ using DailyWork.Mcp.FileSystem.Configuration;
 using DailyWork.Mcp.FileSystem.Data;
 using DailyWork.Mcp.FileSystem.Entities;
 using DailyWork.Mcp.FileSystem.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace DailyWork.Mcp.FileSystem.Test.Services;
@@ -35,7 +36,7 @@ public class FileSystemServiceTests : IDisposable
             MaxFileSizeBytes = maxFileSize
         };
 
-        return new FileSystemService(db, Options.Create(options));
+        return new FileSystemService(db, Options.Create(options), NullLogger<FileSystemService>.Instance);
     }
 
     [Fact]

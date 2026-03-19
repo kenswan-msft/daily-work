@@ -2,12 +2,14 @@ using DailyWork.Agents.Clients;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace DailyWork.Agents.Factories;
 
 public sealed class KnowledgeAgent(
     IChatClient chatClient,
-    [FromKeyedServices(McpClientKeys.Knowledge)] IList<AITool> mcpTools) : IAgentFactory
+    [FromKeyedServices(McpClientKeys.Knowledge)] IList<AITool> mcpTools,
+    ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "knowledge";
 
@@ -44,5 +46,6 @@ public sealed class KnowledgeAgent(
                     Instructions = Instructions,
                     Tools = [.. mcpTools]
                 }
-            });
+            },
+            loggerFactory: loggerFactory);
 }

@@ -2,12 +2,14 @@ using DailyWork.Agents.Clients;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace DailyWork.Agents.Factories;
 
 public sealed class FileSystemAgent(
     IChatClient chatClient,
-    [FromKeyedServices(McpClientKeys.FileSystem)] IList<AITool> mcpTools) : IAgentFactory
+    [FromKeyedServices(McpClientKeys.FileSystem)] IList<AITool> mcpTools,
+    ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "filesystem";
 
@@ -54,5 +56,6 @@ public sealed class FileSystemAgent(
                     Instructions = Instructions,
                     Tools = [.. mcpTools]
                 }
-            });
+            },
+            loggerFactory: loggerFactory);
 }
