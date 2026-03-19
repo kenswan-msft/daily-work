@@ -108,6 +108,18 @@ public sealed class DailyWorkApiFactory : WebApplicationFactory<GoalsReadDbConte
             services.AddDbContext<KnowledgeReadDbContext>(options =>
                 options.UseInMemoryDatabase(dbName));
 
+            // Replace ProjectsReadDbContext with InMemory — remove all Aspire pool registrations
+            var projectsDbDescriptors = services
+                .Where(d => d.ServiceType.ToString().Contains("ProjectsReadDbContext"))
+                .ToList();
+            foreach (ServiceDescriptor descriptor in projectsDbDescriptors)
+            {
+                services.Remove(descriptor);
+            }
+
+            services.AddDbContext<ProjectsReadDbContext>(options =>
+                options.UseInMemoryDatabase(dbName));
+
             // Replace ConversationsDbContext with InMemory — remove all Aspire pool registrations
             var conversationsDbDescriptors = services
                 .Where(d => d.ServiceType.ToString().Contains("ConversationsDbContext"))

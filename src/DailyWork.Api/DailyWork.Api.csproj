@@ -8,6 +8,7 @@
     <ProjectReference Include="..\DailyWork.Agents\DailyWork.Agents.csproj" />
     <ProjectReference Include="..\DailyWork.Mcp.Goals\DailyWork.Mcp.Goals.csproj" />
     <ProjectReference Include="..\DailyWork.Mcp.Knowledge\DailyWork.Mcp.Knowledge.csproj" />
+    <ProjectReference Include="..\DailyWork.Mcp.Projects\DailyWork.Mcp.Projects.csproj" />
     <ProjectReference Include="..\DailyWork.ServiceDefaults\DailyWork.ServiceDefaults.csproj" />
   </ItemGroup>
 

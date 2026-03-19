@@ -133,4 +133,36 @@ public class DashboardApiClient(HttpClient httpClient)
         CancellationToken cancellationToken = default) =>
         await httpClient.GetFromJsonAsync<List<KnowledgeTagSummary>>(
             "/api/dashboard/knowledge/tags", cancellationToken).ConfigureAwait(false) ?? [];
+
+    public virtual async Task<List<ProjectSummary>> GetProjectsAsync(
+        string? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        string url = "/api/dashboard/projects";
+        if (status is not null)
+        {
+            url += $"?status={status}";
+        }
+
+        return await httpClient.GetFromJsonAsync<List<ProjectSummary>>(url, cancellationToken)
+            .ConfigureAwait(false) ?? [];
+    }
+
+    public virtual async Task<ProjectProgressSummary?> GetProjectProgressAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default) =>
+        await httpClient.GetFromJsonAsync<ProjectProgressSummary>(
+            $"/api/dashboard/projects/{projectId}/progress", cancellationToken).ConfigureAwait(false);
+
+    public virtual async Task<List<FeatureSummary>> GetProjectFeaturesAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default) =>
+        await httpClient.GetFromJsonAsync<List<FeatureSummary>>(
+            $"/api/dashboard/projects/{projectId}/features", cancellationToken).ConfigureAwait(false) ?? [];
+
+    public virtual async Task<List<ActionItemSummary>> GetProjectActionItemsAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default) =>
+        await httpClient.GetFromJsonAsync<List<ActionItemSummary>>(
+            $"/api/dashboard/projects/{projectId}/actionitems", cancellationToken).ConfigureAwait(false) ?? [];
 }

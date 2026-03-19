@@ -1,0 +1,252 @@
+@page "/projects/{ProjectId:guid}"
+@using DailyWork.Web.Models
+@using DailyWork.Web.Services
+@using MudBlazor
+@inject DashboardApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Project Detail - DailyWork</PageTitle>
+
+<MudButton Variant="Variant.Text"
+           StartIcon="@Icons.Material.Filled.ArrowBack"
+           OnClick="@(() => Navigation.NavigateTo("/projects"))"
+           Class="mb-4">
+    Back to Projects
+</MudButton>
+
+@if (loading)
+{
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="200px" Class="mb-4" />
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="300px" />
+}
+else if (error is not null)
+{
+    <MudAlert Severity="Severity.Error">@error</MudAlert>
+}
+else if (progress is not null)
+{
+    <MudPaper Class="pa-6 mb-4" Elevation="2">
+        <MudText Typo="Typo.h4" Class="mb-2">@progress.Title</MudText>
+
+        <MudGrid Class="mb-4">
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2" Color="Color.Default">Feature Progress</MudText>
+                <div class="d-flex align-center gap-4">
+                    <MudText Typo="Typo.h3" Color="Color.Primary">
+                        @progress.FeatureCompletionPercent%
+                    </MudText>
+                    <div style="flex: 1;">
+                        <MudProgressLinear Color="Color.Primary"
+                                          Value="@progress.FeatureCompletionPercent"
+                                          Rounded="true"
+                                          Size="Size.Large"
+                                          Class="mb-1" />
+                        <MudText Typo="Typo.body2" Color="Color.Default">
+                            @progress.CompletedFeatures of @progress.TotalFeatures features
+                        </MudText>
+                    </div>
+                </div>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2" Color="Color.Default">Action Item Progress</MudText>
+                <div class="d-flex align-center gap-4">
+                    <MudText Typo="Typo.h3" Color="Color.Secondary">
+                        @progress.ActionItemCompletionPercent%
+                    </MudText>
+                    <div style="flex: 1;">
+                        <MudProgressLinear Color="Color.Secondary"
+                                          Value="@progress.ActionItemCompletionPercent"
+                                          Rounded="true"
+                                          Size="Size.Large"
+                                          Class="mb-1" />
+                        <MudText Typo="Typo.body2" Color="Color.Default">
+                            @progress.CompletedActionItems of @progress.TotalActionItems action items
+                        </MudText>
+                    </div>
+                </div>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid>
+            <MudItem xs="3">
+                <MudPaper Class="pa-3 text-center" Elevation="0" Style="background: rgba(76, 175, 80, 0.1);">
+                    <MudText Typo="Typo.h5" Color="Color.Success">@progress.CompletedFeatures</MudText>
+                    <MudText Typo="Typo.caption">Features Done</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="3">
+                <MudPaper Class="pa-3 text-center" Elevation="0" Style="background: rgba(33, 150, 243, 0.1);">
+                    <MudText Typo="Typo.h5" Color="Color.Info">@progress.InProgressFeatures</MudText>
+                    <MudText Typo="Typo.caption">In Progress</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="3">
+                <MudPaper Class="pa-3 text-center" Elevation="0" Style="background: rgba(158, 158, 158, 0.1);">
+                    <MudText Typo="Typo.h5" Color="Color.Default">@progress.NotStartedFeatures</MudText>
+                    <MudText Typo="Typo.caption">Not Started</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="3">
+                <MudPaper Class="pa-3 text-center" Elevation="0" Style="background: rgba(255, 152, 0, 0.1);">
+                    <MudText Typo="Typo.h5" Color="Color.Warning">@progress.TotalActionItems</MudText>
+                    <MudText Typo="Typo.caption">Total Items</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (features.Count > 0)
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">Features</MudText>
+            <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Target Date</th>
+                        <th>Action Items</th>
+                        <th>Tags</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (FeatureSummary feature in features)
+                    {
+                        <tr>
+                            <td>@feature.Title</td>
+                            <td>
+                                <MudChip T="string"
+                                         Color="@GetStatusColor(feature.Status)"
+                                         Size="Size.Small">
+                                    @feature.Status
+                                </MudChip>
+                            </td>
+                            <td>
+                                <MudChip T="string"
+                                         Color="@GetPriorityColor(feature.Priority)"
+                                         Size="Size.Small"
+                                         Variant="Variant.Outlined">
+                                    @feature.Priority
+                                </MudChip>
+                            </td>
+                            <td>@(feature.TargetDate ?? "—")</td>
+                            <td>@feature.CompletedActionItemCount / @feature.ActionItemCount</td>
+                            <td>
+                                @foreach (string tag in feature.Tags)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">#@tag</MudChip>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    }
+
+    @if (actionItems.Count > 0)
+    {
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">Action Items</MudText>
+            <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Due Date</th>
+                        <th>Feature</th>
+                        <th>Tags</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ActionItemSummary item in actionItems)
+                    {
+                        <tr>
+                            <td>@item.Title</td>
+                            <td>
+                                <MudChip T="string"
+                                         Color="@GetStatusColor(item.Status)"
+                                         Size="Size.Small">
+                                    @item.Status
+                                </MudChip>
+                            </td>
+                            <td>
+                                <MudChip T="string"
+                                         Color="@GetPriorityColor(item.Priority)"
+                                         Size="Size.Small"
+                                         Variant="Variant.Outlined">
+                                    @item.Priority
+                                </MudChip>
+                            </td>
+                            <td>@(item.DueDate ?? "—")</td>
+                            <td>@(item.FeatureTitle ?? "—")</td>
+                            <td>
+                                @foreach (string tag in item.Tags)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">#@tag</MudChip>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    }
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+
+    private ProjectProgressSummary? progress;
+    private List<FeatureSummary> features = [];
+    private List<ActionItemSummary> actionItems = [];
+    private bool loading = true;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Task<ProjectProgressSummary?> progressTask = Api.GetProjectProgressAsync(ProjectId);
+            Task<List<FeatureSummary>> featuresTask = Api.GetProjectFeaturesAsync(ProjectId);
+            Task<List<ActionItemSummary>> actionItemsTask = Api.GetProjectActionItemsAsync(ProjectId);
+
+            await Task.WhenAll(progressTask, featuresTask, actionItemsTask).ConfigureAwait(false);
+
+            progress = await progressTask.ConfigureAwait(false);
+            features = await featuresTask.ConfigureAwait(false);
+            actionItems = await actionItemsTask.ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private static Color GetStatusColor(string status) =>
+        status switch
+        {
+            "Completed" => Color.Success,
+            "InProgress" => Color.Info,
+            "NotStarted" => Color.Default,
+            "OnHold" => Color.Warning,
+            "Archived" => Color.Warning,
+            _ => Color.Default
+        };
+
+    private static Color GetPriorityColor(string priority) =>
+        priority switch
+        {
+            "Critical" => Color.Error,
+            "High" => Color.Warning,
+            "Medium" => Color.Info,
+            "Low" => Color.Default,
+            _ => Color.Default
+        };
+}

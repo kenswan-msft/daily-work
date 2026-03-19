@@ -18,4 +18,6 @@ public static class AgentKeys
     public const string MicrosoftDocs = "microsoft-docs";
 
     public const string FileSystem = "filesystem";
+
+    public const string Projects = "projects";
 }

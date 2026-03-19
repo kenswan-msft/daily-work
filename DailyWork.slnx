@@ -18,6 +18,7 @@
   <Project Path="src/DailyWork.Mcp.FileSystem/DailyWork.Mcp.FileSystem.csproj" />
   <Project Path="src/DailyWork.Mcp.Goals/DailyWork.Mcp.Goals.csproj" />
   <Project Path="src/DailyWork.Mcp.Knowledge/DailyWork.Mcp.Knowledge.csproj" />
+  <Project Path="src/DailyWork.Mcp.Projects/DailyWork.Mcp.Projects.csproj" />
   <Project Path="src/DailyWork.ServiceDefaults/DailyWork.ServiceDefaults.csproj" />
   <Project Path="src/DailyWork.Web/DailyWork.Web.csproj" />
   <Project Path="test/DailyWork.Agents.Test/DailyWork.Agents.Test.csproj" />
@@ -26,5 +27,6 @@
   <Project Path="test/DailyWork.Mcp.FileSystem.Test/DailyWork.Mcp.FileSystem.Test.csproj" />
   <Project Path="test/DailyWork.Mcp.Goals.Test/DailyWork.Mcp.Goals.Test.csproj" />
   <Project Path="test/DailyWork.Mcp.Knowledge.Test/DailyWork.Mcp.Knowledge.Test.csproj" />
+  <Project Path="test/DailyWork.Mcp.Projects.Test/DailyWork.Mcp.Projects.Test.csproj" />
   <Project Path="test/DailyWork.Web.Test/DailyWork.Web.Test.csproj" />
 </Solution>

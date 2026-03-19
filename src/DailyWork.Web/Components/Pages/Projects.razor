@@ -1,0 +1,177 @@
+@page "/projects"
+@using DailyWork.Web.Models
+@using DailyWork.Web.Services
+@using MudBlazor
+@inject DashboardApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Projects - DailyWork</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Projects</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <div class="d-flex gap-2 flex-wrap">
+        <MudChip T="string"
+                 Color="@(statusFilter is null ? Color.Primary : Color.Default)"
+                 Variant="Variant.Filled"
+                 OnClick="@(() => FilterByStatus(null))">
+            All
+        </MudChip>
+        @foreach (string status in new[] { "NotStarted", "InProgress", "Completed", "OnHold", "Archived" })
+        {
+            <MudChip T="string"
+                     Color="@(statusFilter == status ? Color.Primary : Color.Default)"
+                     Variant="@(statusFilter == status ? Variant.Filled : Variant.Outlined)"
+                     OnClick="@(() => FilterByStatus(status))">
+                @status
+            </MudChip>
+        }
+    </div>
+</MudPaper>
+
+@if (loading)
+{
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="400px" />
+}
+else if (error is not null)
+{
+    <MudAlert Severity="Severity.Error">Unable to load projects: @error</MudAlert>
+}
+else if (projects.Count == 0)
+{
+    <MudPaper Class="pa-6 text-center" Elevation="2">
+        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Large" Color="Color.Default" />
+        <MudText Typo="Typo.h6" Class="mt-2">No projects found</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Default">
+            Create projects via the CLI or chat agent to see them here.
+        </MudText>
+    </MudPaper>
+}
+else
+{
+    <MudGrid>
+        @foreach (ProjectSummary project in projects)
+        {
+            <MudItem xs="12" md="6" lg="4">
+                <div @onclick="@(() => ViewProjectDetail(project.Id))" style="cursor: pointer;">
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@project.Title</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string"
+                                     Color="@GetStatusColor(project.Status)"
+                                     Size="Size.Small"
+                                     Variant="Variant.Filled">
+                                @project.Status
+                            </MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <MudChip T="string"
+                                     Color="@GetPriorityColor(project.Priority)"
+                                     Size="Size.Small"
+                                     Variant="Variant.Outlined">
+                                @project.Priority
+                            </MudChip>
+                            @if (project.TargetDate is not null)
+                            {
+                                <MudText Typo="Typo.caption">Target: @project.TargetDate</MudText>
+                            }
+                        </div>
+
+                        @if (project.FeatureCount > 0)
+                        {
+                            double progress = project.FeatureCount > 0
+                                ? (double)project.CompletedFeatureCount / project.FeatureCount * 100
+                                : 0;
+                            <MudProgressLinear Color="Color.Primary"
+                                              Value="@progress"
+                                              Class="my-2"
+                                              Rounded="true"
+                                              Size="Size.Medium" />
+                            <MudText Typo="Typo.caption">
+                                @project.CompletedFeatureCount / @project.FeatureCount features completed
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Default">No features linked</MudText>
+                        }
+
+                        @if (project.Tags.Length > 0)
+                        {
+                            <div class="d-flex gap-1 flex-wrap mt-2">
+                                @foreach (string tag in project.Tags)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">
+                                        #@tag
+                                    </MudChip>
+                                }
+                            </div>
+                        }
+                    </MudCardContent>
+                </MudCard>
+                </div>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<ProjectSummary> projects = [];
+    private string? statusFilter;
+    private bool loading = true;
+    private string? error;
+
+    protected override async Task OnInitializedAsync() => await LoadProjectsAsync().ConfigureAwait(false);
+
+    private async Task FilterByStatus(string? status)
+    {
+        statusFilter = status;
+        loading = true;
+        await LoadProjectsAsync().ConfigureAwait(false);
+    }
+
+    private async Task LoadProjectsAsync()
+    {
+        try
+        {
+            projects = await Api.GetProjectsAsync(statusFilter).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ViewProjectDetail(Guid projectId) =>
+        Navigation.NavigateTo($"/projects/{projectId}");
+
+    private static Color GetStatusColor(string status) =>
+        status switch
+        {
+            "Completed" => Color.Success,
+            "InProgress" => Color.Info,
+            "NotStarted" => Color.Default,
+            "OnHold" => Color.Warning,
+            "Archived" => Color.Warning,
+            _ => Color.Default
+        };
+
+    private static Color GetPriorityColor(string priority) =>
+        priority switch
+        {
+            "Critical" => Color.Error,
+            "High" => Color.Warning,
+            "Medium" => Color.Info,
+            "Low" => Color.Default,
+            _ => Color.Default
+        };
+}

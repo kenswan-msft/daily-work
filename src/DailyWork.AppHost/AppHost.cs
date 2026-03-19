@@ -28,6 +28,9 @@ IResourceBuilder<SqlServerDatabaseResource> knowledgeDb =
 IResourceBuilder<SqlServerDatabaseResource> filesystemDb =
     sqlServer.AddDatabase("filesystem-db");
 
+IResourceBuilder<SqlServerDatabaseResource> projectsDb =
+    sqlServer.AddDatabase("projects-db");
+
 IResourceBuilder<SqlServerDatabaseResource> conversationsDb =
     sqlServer.AddDatabase("conversations-db");
 
@@ -51,6 +54,11 @@ IResourceBuilder<ProjectResource> filesystemMcp =
         .WithReference(filesystemDb)
         .WaitFor(filesystemDb);
 
+IResourceBuilder<ProjectResource> projectsMcp =
+    builder.AddProject<Projects.DailyWork_Mcp_Projects>("projects-mcp")
+        .WithReference(projectsDb)
+        .WaitFor(projectsDb);
+
 IResourceBuilder<ProjectResource> api =
     builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WithReference(goalsDb)
@@ -59,12 +67,14 @@ IResourceBuilder<ProjectResource> api =
     .WithReference(blackjackMcp)
     .WithReference(knowledgeMcp)
     .WithReference(filesystemMcp)
+    .WithReference(projectsMcp)
     .WithReference(conversationsDb)
     .WaitFor(conversationsDb)
     .WaitFor(goalsMcp)
     .WaitFor(blackjackMcp)
     .WaitFor(knowledgeMcp)
-    .WaitFor(filesystemMcp);
+    .WaitFor(filesystemMcp)
+    .WaitFor(projectsMcp);
 
 builder.AddProject<Projects.DailyWork_Web>("dailywork-web")
     .WithReference(api)

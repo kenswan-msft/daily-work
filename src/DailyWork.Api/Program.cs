@@ -14,6 +14,7 @@ builder.Services.AddDbContextFactory<ConversationsDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("conversations-db")));
 builder.AddSqlServerDbContext<GoalsReadDbContext>("goals-db");
 builder.AddSqlServerDbContext<KnowledgeReadDbContext>("knowledge-db");
+builder.AddSqlServerDbContext<ProjectsReadDbContext>("projects-db");
 
 builder.Services.AddOpenApi();
 builder.Services.AddAGUI();
@@ -32,6 +33,8 @@ builder.Services
     .AddAgentFactoryAsTool<MicrosoftDocsAgent>(AgentKeys.MicrosoftDocs)
     .AddMcpClient(McpClientKeys.FileSystem, builder.Configuration)
     .AddAgentFactoryAsTool<FileSystemAgent>(AgentKeys.FileSystem)
+    .AddMcpClient(McpClientKeys.Projects, builder.Configuration)
+    .AddAgentFactoryAsTool<ProjectsAgent>(AgentKeys.Projects)
     .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();
@@ -57,6 +60,7 @@ if (app.Environment.IsDevelopment())
 app.MapDefaultEndpoints();
 app.MapDashboardEndpoints();
 app.MapKnowledgeDashboardEndpoints();
+app.MapProjectsDashboardEndpoints();
 
 app.MapAGUI("/api/chat", app.Services.GetRequiredKeyedService<RequestScopedAGUIAgent>(AgentKeys.Chat));
 

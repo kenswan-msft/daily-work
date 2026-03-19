@@ -14,6 +14,7 @@ public sealed class ChatAgent(
     [FromKeyedServices(AgentKeys.Knowledge)] AITool knowledgeAgentTool,
     [FromKeyedServices(AgentKeys.MicrosoftDocs)] AITool microsoftDocsAgentTool,
     [FromKeyedServices(AgentKeys.FileSystem)] AITool fileSystemAgentTool,
+    [FromKeyedServices(AgentKeys.Projects)] AITool projectsAgentTool,
     ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "chat";
@@ -51,6 +52,11 @@ public sealed class ChatAgent(
         directory is needed. When the user grants access (says "yes", "allow", "always allow",
         etc.), delegate back to the file system assistant with the user's permission so it
         can add the directory and complete the original request.
+
+        You have a projects assistant available as a tool. Delegate to it for any requests
+        related to managing projects, features, action items, or project progress. The projects
+        assistant helps organize and track software development work through a hierarchy of
+        projects, features, and action items.
         """;
 
     public AIAgent Create() =>
@@ -62,7 +68,7 @@ public sealed class ChatAgent(
                 ChatOptions = new ChatOptions
                 {
                     Instructions = Instructions,
-                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool]
+                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
             },
