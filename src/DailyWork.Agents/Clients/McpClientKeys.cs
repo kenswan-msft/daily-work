@@ -18,4 +18,8 @@ public static class McpClientKeys
     public const string FileSystem = "filesystem-mcp";
 
     public const string Projects = "projects-mcp";
+
+    public const string GitHub = "github-mcp";
+
+    public const string DotNet = "dotnet-mcp";
 }

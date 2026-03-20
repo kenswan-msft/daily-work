@@ -38,7 +38,9 @@ public class ChatAgentTests
         AITool microsoftDocsAgentTool = Substitute.For<AITool>();
         AITool fileSystemAgentTool = Substitute.For<AITool>();
         AITool projectsAgentTool = Substitute.For<AITool>();
-        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, NullLoggerFactory.Instance);
+        AITool gitHubAgentTool = Substitute.For<AITool>();
+        AITool dotNetAgentTool = Substitute.For<AITool>();
+        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, gitHubAgentTool, dotNetAgentTool, NullLoggerFactory.Instance);
 
         AIAgent agent = sut.Create();
 

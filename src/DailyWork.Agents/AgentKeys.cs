@@ -20,4 +20,8 @@ public static class AgentKeys
     public const string FileSystem = "filesystem";
 
     public const string Projects = "projects";
+
+    public const string GitHub = "github";
+
+    public const string DotNet = "dotnet";
 }

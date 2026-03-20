@@ -59,6 +59,12 @@ IResourceBuilder<ProjectResource> projectsMcp =
         .WithReference(projectsDb)
         .WaitFor(projectsDb);
 
+IResourceBuilder<ProjectResource> githubMcp =
+    builder.AddProject<Projects.DailyWork_Mcp_GitHub>("github-mcp");
+
+IResourceBuilder<ProjectResource> dotnetMcp =
+    builder.AddProject<Projects.DailyWork_Mcp_DotNet>("dotnet-mcp");
+
 IResourceBuilder<ProjectResource> api =
     builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WithReference(goalsDb)
@@ -69,13 +75,17 @@ IResourceBuilder<ProjectResource> api =
     .WithReference(knowledgeMcp)
     .WithReference(filesystemMcp)
     .WithReference(projectsMcp)
+    .WithReference(githubMcp)
+    .WithReference(dotnetMcp)
     .WithReference(conversationsDb)
     .WaitFor(conversationsDb)
     .WaitFor(goalsMcp)
     .WaitFor(blackjackMcp)
     .WaitFor(knowledgeMcp)
     .WaitFor(filesystemMcp)
-    .WaitFor(projectsMcp);
+    .WaitFor(projectsMcp)
+    .WaitFor(githubMcp)
+    .WaitFor(dotnetMcp);
 
 builder.AddProject<Projects.DailyWork_Web>("dailywork-web")
     .WithReference(api)

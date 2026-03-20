@@ -35,6 +35,10 @@ builder.Services
     .AddAgentFactoryAsTool<FileSystemAgent>(AgentKeys.FileSystem)
     .AddMcpClient(McpClientKeys.Projects, builder.Configuration)
     .AddAgentFactoryAsTool<ProjectsAgent>(AgentKeys.Projects)
+    .AddMcpClient(McpClientKeys.GitHub, builder.Configuration)
+    .AddAgentFactoryAsTool<GitHubAgent>(AgentKeys.GitHub)
+    .AddMcpClient(McpClientKeys.DotNet, builder.Configuration)
+    .AddAgentFactoryAsTool<DotNetAgent>(AgentKeys.DotNet)
     .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();

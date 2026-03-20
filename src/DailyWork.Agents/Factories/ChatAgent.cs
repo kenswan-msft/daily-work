@@ -15,6 +15,8 @@ public sealed class ChatAgent(
     [FromKeyedServices(AgentKeys.MicrosoftDocs)] AITool microsoftDocsAgentTool,
     [FromKeyedServices(AgentKeys.FileSystem)] AITool fileSystemAgentTool,
     [FromKeyedServices(AgentKeys.Projects)] AITool projectsAgentTool,
+    [FromKeyedServices(AgentKeys.GitHub)] AITool gitHubAgentTool,
+    [FromKeyedServices(AgentKeys.DotNet)] AITool dotNetAgentTool,
     ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "chat";
@@ -57,6 +59,15 @@ public sealed class ChatAgent(
         related to managing projects, features, action items, or project progress. The projects
         assistant helps organize and track software development work through a hierarchy of
         projects, features, and action items.
+
+        You have a GitHub assistant available as a tool. Delegate to it for any requests
+        related to GitHub issues, pull requests, repository information, or PR status. The
+        GitHub assistant uses the GitHub CLI to query and report on GitHub data.
+
+        You have a .NET assistant available as a tool. Delegate to it for any requests
+        related to .NET SDK versions, runtime versions, NuGet package information, outdated
+        packages, or solution/project structure. The .NET assistant uses the dotnet CLI to
+        query SDK and package details.
         """;
 
     public AIAgent Create() =>
@@ -68,7 +79,7 @@ public sealed class ChatAgent(
                 ChatOptions = new ChatOptions
                 {
                     Instructions = Instructions,
-                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool]
+                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, gitHubAgentTool, dotNetAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
             },

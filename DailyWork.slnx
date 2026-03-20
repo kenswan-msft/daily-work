@@ -33,4 +33,5 @@
   <Project Path="src/DailyWork.Mcp.Shared/DailyWork.Mcp.Shared.csproj" />
   <Project Path="src/DailyWork.Mcp.GitHub/DailyWork.Mcp.GitHub.csproj" />
   <Project Path="test/DailyWork.Mcp.GitHub.Test/DailyWork.Mcp.GitHub.Test.csproj" />
+  <Project Path="test/DailyWork.Mcp.DotNet.Test/DailyWork.Mcp.DotNet.Test.csproj" />
 </Solution>
