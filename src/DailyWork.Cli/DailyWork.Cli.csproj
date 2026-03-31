@@ -5,6 +5,13 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup Label="Global Tool Settings">
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>daily</ToolCommandName>
+    <PackageId>DailyWork.Cli</PackageId>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="AutomationIoC.CommandLine" />
     <PackageReference Include="Microsoft.Agents.AI" />

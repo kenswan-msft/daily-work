@@ -16,6 +16,10 @@ internal static class CliServiceRegistration
         };
 
         configurationBuilder.AddInMemoryCollection(defaults);
+
+        ToolConfiguration.AddToolConfigurationFile(configurationBuilder);
+
+        configurationBuilder.AddEnvironmentVariables("DAILYWORK_");
     }
 
     internal static void ConfigureServices(IServiceCollection services)
@@ -40,6 +44,8 @@ internal static class CliServiceRegistration
 
         services.AddSingleton<IChatRenderer, SpectreConsoleChatRenderer>();
         services.AddSingleton<IChatInputReader, ConsoleChatInputReader>();
+        services.AddSingleton<ApiHealthChecker>();
+        services.AddSingleton<AppHostLauncher>();
         services.AddTransient<IChatAgent>(serviceProvider =>
         {
             IHttpClientFactory httpClientFactory =
