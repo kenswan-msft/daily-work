@@ -1,23 +1,23 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Spectre.Console;
 
 namespace DailyWork.Cli;
 
-public sealed partial class AppHostLauncher(
+public sealed class AppHostLauncher(
     IConfiguration configuration,
     ApiHealthChecker healthChecker) : IAsyncDisposable
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan LaunchTimeout = TimeSpan.FromMinutes(3);
 
+    private readonly ConcurrentQueue<string> outputLines = new();
+
     private Process? launchedProcess;
     private bool stopped;
 
     public bool CliStartedAppHost => launchedProcess is not null;
-
-    public string? DashboardUrl { get; private set; }
 
     public string? GetAppHostPath() =>
         configuration[nameof(ToolConfiguration.AppHostProjectPath)];
@@ -62,8 +62,7 @@ public sealed partial class AppHostLauncher(
             return false;
         }
 
-        // Read stdout in the background to capture the dashboard URL
-        _ = Task.Run(() => ReadOutputForDashboardUrlAsync(launchedProcess), cancellationToken);
+        _ = Task.Run(() => ReadProcessOutputAsync(launchedProcess), cancellationToken);
 
         return await WaitForApiHealthyAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -97,31 +96,43 @@ public sealed partial class AppHostLauncher(
 
     public async ValueTask DisposeAsync() => await StopAsync().ConfigureAwait(false);
 
-    internal static string? ParseDashboardUrl(string line)
-    {
-        Match match = DashboardUrlPattern().Match(line);
-        return match.Success ? match.Value : null;
-    }
-
-    private async Task ReadOutputForDashboardUrlAsync(Process process)
+    private async Task ReadProcessOutputAsync(Process process)
     {
         try
         {
             while (await process.StandardOutput.ReadLineAsync().ConfigureAwait(false) is { } line)
             {
-                string? url = ParseDashboardUrl(line);
-
-                if (url is not null)
-                {
-                    DashboardUrl = url;
-                    break;
-                }
+                outputLines.Enqueue(line);
             }
         }
         catch (Exception)
         {
             // Process may have exited or been killed; ignore
         }
+    }
+
+    private void RenderStartupOutput()
+    {
+        List<string> lines = [];
+
+        while (outputLines.TryDequeue(out string? line))
+        {
+            lines.Add(line);
+        }
+
+        if (lines.Count == 0)
+        {
+            return;
+        }
+
+        string content = string.Join(Environment.NewLine, lines.Select(Markup.Escape));
+
+        AnsiConsole.Write(
+            new Panel(content)
+                .Header("[cyan]AppHost Startup[/]")
+                .Border(BoxBorder.Rounded)
+                .BorderStyle(Style.Parse("dim"))
+                .Expand());
     }
 
     private async Task<bool> WaitForApiHealthyAsync(CancellationToken cancellationToken)
@@ -137,11 +148,6 @@ public sealed partial class AppHostLauncher(
 
                 while (!linkedCts.Token.IsCancellationRequested)
                 {
-                    if (DashboardUrl is not null)
-                    {
-                        ctx.Status($"Dashboard found — waiting for API...");
-                    }
-
                     bool reachable = await healthChecker
                         .IsApiReachableAsync(linkedCts.Token)
                         .ConfigureAwait(false);
@@ -166,14 +172,14 @@ public sealed partial class AppHostLauncher(
                 return false;
             }).ConfigureAwait(false);
 
+        // Brief pause to let remaining output arrive
+        await Task.Delay(500, CancellationToken.None).ConfigureAwait(false);
+
+        RenderStartupOutput();
+
         if (healthy)
         {
             AnsiConsole.MarkupLine("[green]✓[/] DailyWork AppHost is running.");
-
-            if (DashboardUrl is not null)
-            {
-                AnsiConsole.MarkupLine($"[cyan]  Dashboard:[/] {Markup.Escape(DashboardUrl)}");
-            }
         }
         else
         {
@@ -182,7 +188,4 @@ public sealed partial class AppHostLauncher(
 
         return healthy;
     }
-
-    [GeneratedRegex(@"https?://\S+/login\?t=\S+")]
-    private static partial Regex DashboardUrlPattern();
 }

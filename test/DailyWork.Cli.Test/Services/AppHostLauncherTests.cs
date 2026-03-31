@@ -114,48 +114,4 @@ public class AppHostLauncherTests
 
         Assert.False(sut.CliStartedAppHost);
     }
-
-    [Theory]
-    [InlineData(
-        "Login to the dashboard at https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2",
-        "https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2")]
-    [InlineData(
-        "Dashboard: https://localhost:18001/login?t=abc123",
-        "https://localhost:18001/login?t=abc123")]
-    [InlineData(
-        "info: https://localhost:15000/login?t=token_value extra text",
-        "https://localhost:15000/login?t=token_value")]
-    [InlineData(
-        "http://localhost:5000/login?t=dev",
-        "http://localhost:5000/login?t=dev")]
-    public void ParseDashboardUrl_LineContainsUrl_ReturnsUrl(string line, string expectedUrl)
-    {
-        string? result = AppHostLauncher.ParseDashboardUrl(line);
-
-        Assert.Equal(expectedUrl, result);
-    }
-
-    [Theory]
-    [InlineData("Starting Aspire AppHost...")]
-    [InlineData("Building project...")]
-    [InlineData("https://localhost:7048/health")]
-    [InlineData("")]
-    public void ParseDashboardUrl_NoMatch_ReturnsNull(string line)
-    {
-        string? result = AppHostLauncher.ParseDashboardUrl(line);
-
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public void DashboardUrl_BeforeLaunch_IsNull()
-    {
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>())
-            .Build();
-
-        AppHostLauncher sut = new(configuration, null!);
-
-        Assert.Null(sut.DashboardUrl);
-    }
 }
