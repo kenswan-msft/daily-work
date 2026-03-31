@@ -34,16 +34,17 @@ fi
 echo "→ Cleaning previous packages..."
 rm -rf "$NUPKG_DIR"
 
-# Pack the CLI project
-echo "→ Packing DailyWork.Cli..."
-dotnet pack "$CLI_PROJECT" -c Release --nologo -v quiet
+# Pack the CLI project with a unique timestamp suffix so updates are always detected
+TIMESTAMP=$(date -u +%Y%m%d%H%M)
+echo "→ Packing DailyWork.Cli (version suffix: $TIMESTAMP)..."
+dotnet pack "$CLI_PROJECT" -c Release --nologo -v quiet -p:VersionSuffix="$TIMESTAMP"
 
 # Install or update the global tool
 echo "→ Installing global tool '$TOOL_NAME'..."
 if dotnet tool list -g | grep -q "$PACKAGE_ID"; then
-    dotnet tool update --global --add-source "$NUPKG_DIR" "$PACKAGE_ID" --no-cache
+    dotnet tool update --global --prerelease --add-source "$NUPKG_DIR" "$PACKAGE_ID" --no-cache
 else
-    dotnet tool install --global --add-source "$NUPKG_DIR" "$PACKAGE_ID" --no-cache
+    dotnet tool install --global --prerelease --add-source "$NUPKG_DIR" "$PACKAGE_ID" --no-cache
 fi
 
 # Write configuration file

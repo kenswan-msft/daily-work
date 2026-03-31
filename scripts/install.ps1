@@ -43,18 +43,19 @@ if (Test-Path $NupkgDir) {
     Remove-Item -Recurse -Force $NupkgDir
 }
 
-# Pack the CLI project
-Write-Host '→ Packing DailyWork.Cli...'
-dotnet pack $CliProject -c Release --nologo -v quiet
+# Pack the CLI project with a unique timestamp suffix so updates are always detected
+$Timestamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmm')
+Write-Host "→ Packing DailyWork.Cli (version suffix: $Timestamp)..."
+dotnet pack $CliProject -c Release --nologo -v quiet -p:VersionSuffix="$Timestamp"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 # Install or update the global tool
 Write-Host "→ Installing global tool '$ToolName'..."
 $installedTools = dotnet tool list -g
 if ($installedTools -match $PackageId) {
-    dotnet tool update --global --add-source $NupkgDir $PackageId --no-cache
+    dotnet tool update --global --prerelease --add-source $NupkgDir $PackageId --no-cache
 } else {
-    dotnet tool install --global --add-source $NupkgDir $PackageId --no-cache
+    dotnet tool install --global --prerelease --add-source $NupkgDir $PackageId --no-cache
 }
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
