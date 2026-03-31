@@ -102,7 +102,10 @@ public sealed class AppHostLauncher(
         {
             while (await process.StandardOutput.ReadLineAsync().ConfigureAwait(false) is { } line)
             {
-                outputLines.Enqueue(line);
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    outputLines.Enqueue(line);
+                }
             }
         }
         catch (Exception)
