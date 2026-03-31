@@ -9,6 +9,8 @@ public class StartChatCommand : IAutomationCommandInitializer
     public void Initialize(IAutomationCommand command) =>
         command.SetAction(async (_, automationContext, cancellationToken) =>
         {
+            Console.Clear();
+
             IServiceProvider services = automationContext.ServiceProvider;
 
             AppHostLauncher launcher = services.GetRequiredService<AppHostLauncher>();

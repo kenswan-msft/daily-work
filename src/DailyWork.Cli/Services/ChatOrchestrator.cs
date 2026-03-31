@@ -11,7 +11,6 @@ public class ChatOrchestrator(
 {
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        Console.Clear();
         renderer.RenderHeader();
         await agent.InitializeSessionAsync(cancellationToken).ConfigureAwait(false);
 
