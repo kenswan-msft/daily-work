@@ -17,6 +17,7 @@ public sealed class ChatAgent(
     [FromKeyedServices(AgentKeys.Projects)] AITool projectsAgentTool,
     [FromKeyedServices(AgentKeys.GitHub)] AITool gitHubAgentTool,
     [FromKeyedServices(AgentKeys.DotNet)] AITool dotNetAgentTool,
+    [FromKeyedServices(AgentKeys.WebSearch)] AITool webSearchAgentTool,
     ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "chat";
@@ -68,6 +69,12 @@ public sealed class ChatAgent(
         related to .NET SDK versions, runtime versions, NuGet package information, outdated
         packages, or solution/project structure. The .NET assistant uses the dotnet CLI to
         query SDK and package details.
+
+        You have a web search assistant available as a tool. Delegate to it for any requests
+        that require searching the internet for current information, looking up documentation
+        or articles on non-Microsoft topics, checking the latest news or updates, or visiting
+        specific URLs to retrieve content. The web search assistant uses a headless browser to
+        navigate the web and extract information.
         """;
 
     public AIAgent Create() =>
@@ -79,7 +86,7 @@ public sealed class ChatAgent(
                 ChatOptions = new ChatOptions
                 {
                     Instructions = Instructions,
-                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, gitHubAgentTool, dotNetAgentTool]
+                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, gitHubAgentTool, dotNetAgentTool, webSearchAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
             },

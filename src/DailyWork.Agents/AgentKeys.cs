@@ -24,4 +24,6 @@ public static class AgentKeys
     public const string GitHub = "github";
 
     public const string DotNet = "dotnet";
+
+    public const string WebSearch = "web-search";
 }

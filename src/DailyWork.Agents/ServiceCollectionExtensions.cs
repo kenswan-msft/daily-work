@@ -153,15 +153,13 @@ public static class ServiceCollectionExtensions
                     ILogger logger = loggerFactory.CreateLogger($"McpClient.{key}");
 
                     EndpointResolution resolution =
-                        ResolveEndpoint(key, options.Endpoint, configuration);
+                        ResolveEndpoint(key, options, configuration);
 
                     var transportOptions = new HttpClientTransportOptions
                     {
                         Endpoint = new Uri(resolution.Url),
                         Name = options.Name,
-                        TransportMode = resolution.IsExternal
-                            ? HttpTransportMode.StreamableHttp
-                            : HttpTransportMode.AutoDetect
+                        TransportMode = HttpTransportMode.AutoDetect
                     };
 
                     HttpClientTransport transport = resolution.IsExternal
@@ -247,33 +245,56 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Resolves the MCP endpoint URL using the Aspire service binding configuration
-    /// with a fallback to an explicit endpoint value. Returns whether the endpoint
-    /// is external (explicit) vs Aspire-managed so callers can choose the appropriate
-    /// <see cref="HttpClient"/> strategy.
+    /// Resolves the MCP endpoint URL using the following fallback chain:
+    /// <list type="number">
+    ///   <item>Environment variable specified by <see cref="McpServerConnectionOptions.EnvironmentVariable"/></item>
+    ///   <item>Aspire service binding: <c>services:{key}:https:0</c> or <c>services:{key}:http:0</c></item>
+    ///   <item>Explicit <see cref="McpServerConnectionOptions.Endpoint"/> from configuration</item>
+    /// </list>
+    /// Returns whether the endpoint is external (explicit / env var) vs Aspire-managed
+    /// so callers can choose the appropriate <see cref="HttpClient"/> strategy.
     /// </summary>
+#pragma warning disable IDE0051
     private static EndpointResolution ResolveEndpoint(
+#pragma warning restore IDE0051
         string key,
-        string? explicitEndpoint,
+        McpServerConnectionOptions options,
         IConfiguration configuration)
     {
-        // Aspire injects service bindings into IConfiguration as:
+        // 1. Environment variable — supports containers that require a non-standard
+        //    path suffix (e.g., Playwright MCP at /sse/).
+        if (!string.IsNullOrWhiteSpace(options.EnvironmentVariable))
+        {
+            string? envValue = configuration[options.EnvironmentVariable];
+
+            if (!string.IsNullOrWhiteSpace(envValue))
+            {
+                return new EndpointResolution(envValue, IsExternal: true);
+            }
+        }
+
+        // 2. Aspire injects service bindings into IConfiguration as:
         //   services:{name}:https:0 = https://localhost:PORT
-        string? aspireEndpoint = configuration[$"services:{key}:https:0"];
+        //   services:{name}:http:0  = http://localhost:PORT
+        string? aspireEndpoint =
+            configuration[$"services:{key}:https:0"]
+            ?? configuration[$"services:{key}:http:0"];
 
         if (aspireEndpoint is not null)
         {
             return new EndpointResolution(aspireEndpoint, IsExternal: false);
         }
 
-        if (!string.IsNullOrWhiteSpace(explicitEndpoint))
+        // 3. Explicit endpoint from configuration.
+        if (!string.IsNullOrWhiteSpace(options.Endpoint))
         {
-            return new EndpointResolution(explicitEndpoint, IsExternal: true);
+            return new EndpointResolution(options.Endpoint, IsExternal: true);
         }
 
         throw new InvalidOperationException(
             $"Cannot resolve MCP endpoint for '{key}'. " +
-            $"Set the endpoint via Aspire service bindings or " +
+            $"Set the endpoint via Aspire service bindings, " +
+            $"the 'EnvironmentVariable' property, or " +
             $"the 'Endpoint' property in the McpClients configuration section.");
     }
 

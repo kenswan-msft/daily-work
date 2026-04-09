@@ -65,6 +65,14 @@ IResourceBuilder<ProjectResource> githubMcp =
 IResourceBuilder<ProjectResource> dotnetMcp =
     builder.AddProject<Projects.DailyWork_Mcp_DotNet>("dotnet-mcp");
 
+IResourceBuilder<ContainerResource> playwrightMcp =
+    builder.AddContainer("playwright-mcp", "mcr.microsoft.com/playwright/mcp")
+        .WithArgs("--port", "3000", "--headless", "--host", "0.0.0.0", "--browser", "chromium", "--isolated")
+        .WithEndpoint(port: 3000, targetPort: 3000, name: "http", scheme: "http")
+        .WithContainerRuntimeArgs("--ipc=host", "--init", "--rm")
+        .WithLifetime(ContainerLifetime.Persistent)
+        .WithExternalHttpEndpoints();
+
 IResourceBuilder<ProjectResource> api =
     builder.AddProject<Projects.DailyWork_Api>("dailywork-api")
     .WithReference(goalsDb)
@@ -77,6 +85,11 @@ IResourceBuilder<ProjectResource> api =
     .WithReference(projectsMcp)
     .WithReference(githubMcp)
     .WithReference(dotnetMcp)
+    .WithEnvironment(ctx =>
+    {
+        ctx.EnvironmentVariables["PlaywrightEndpoint"] = ReferenceExpression.Create(
+            $"{playwrightMcp.GetEndpoint("http")}/sse/");
+    })
     .WithReference(conversationsDb)
     .WaitFor(conversationsDb)
     .WaitFor(goalsMcp)
@@ -85,7 +98,8 @@ IResourceBuilder<ProjectResource> api =
     .WaitFor(filesystemMcp)
     .WaitFor(projectsMcp)
     .WaitFor(githubMcp)
-    .WaitFor(dotnetMcp);
+    .WaitFor(dotnetMcp)
+    .WaitFor(playwrightMcp);
 
 builder.AddProject<Projects.DailyWork_Web>("dailywork-web")
     .WithReference(api)

@@ -39,6 +39,8 @@ builder.Services
     .AddAgentFactoryAsTool<GitHubAgent>(AgentKeys.GitHub)
     .AddMcpClient(McpClientKeys.DotNet, builder.Configuration)
     .AddAgentFactoryAsTool<DotNetAgent>(AgentKeys.DotNet)
+    .AddMcpClient(McpClientKeys.Playwright, builder.Configuration)
+    .AddAgentFactoryAsTool<WebSearchAgent>(AgentKeys.WebSearch)
     .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();
