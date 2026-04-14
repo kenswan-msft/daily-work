@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "AppHost (Debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/DailyWork.AppHost/bin/Debug/net10.0/DailyWork.AppHost.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/DailyWork.AppHost",
+      "console": "integratedTerminal",
+      "preLaunchTask": "build-apphost"
+    },
+    {
+      "name": "AppHost (No Debugger)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/DailyWork.AppHost/bin/Debug/net10.0/DailyWork.AppHost.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/DailyWork.AppHost",
+      "console": "integratedTerminal",
+      "preLaunchTask": "build-apphost",
+      "noDebug": true
+    }
+  ]
+}

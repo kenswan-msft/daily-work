@@ -1,0 +1,41 @@
+{
+  "name": "DailyWork",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:10.0",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [
+    5048,
+    5200,
+    7048,
+    7200,
+    15888,
+    18888,
+    63141
+  ],
+  "portsAttributes": {
+    "5048": { "label": "API (HTTP)" },
+    "5200": { "label": "Web (HTTP)" },
+    "7048": { "label": "API (HTTPS)" },
+    "7200": { "label": "Web (HTTPS)" },
+    "15888": { "label": "Aspire Dashboard" },
+    "18888": { "label": "Aspire Dashboard (alt)" },
+    "63141": { "label": "SQL Server" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit@prerelease",
+        "ms-dotnettools.csharp@prerelease",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "dotnet.defaultSolution": "DailyWork.slnx"
+      }
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteEnv": {
+    "DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER": "true"
+  }
+}

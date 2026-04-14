@@ -51,6 +51,25 @@ Built with **.NET Aspire**, **Microsoft Agent Framework**, and **MCP (Model Cont
 
 ---
 
+## Dev Container
+
+A [dev container](.devcontainer/devcontainer.json) is included for a reproducible development environment. It provides:
+
+- **.NET 10 SDK** — pre-installed, matching the project's target framework
+- **Docker-in-Docker** — so Aspire can orchestrate SQL Server and Playwright containers
+- **Pre-configured ports** — API, Web, Aspire dashboard, and SQL Server are auto-forwarded
+- **NuGet restore and HTTPS cert** — handled automatically on first creation
+
+**Open in VS Code:**
+
+1. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. Open the repository folder
+3. When prompted, click **Reopen in Container** (or run `Dev Containers: Reopen in Container` from the command palette)
+
+**Docker Model Runner:** Accessible from inside the dev container via `http://model-runner.docker.internal/` (Docker Desktop only). Override the endpoint in `src/DailyWork.Api/appsettings.json` under `ChatClientOptions:Endpoint` if needed.
+
+---
+
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (preview)
