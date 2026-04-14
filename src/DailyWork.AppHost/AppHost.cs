@@ -65,6 +65,9 @@ IResourceBuilder<ProjectResource> githubMcp =
 IResourceBuilder<ProjectResource> dotnetMcp =
     builder.AddProject<Projects.DailyWork_Mcp_DotNet>("dotnet-mcp");
 
+IResourceBuilder<ProjectResource> obsidianMcp =
+    builder.AddProject<Projects.DailyWork_Mcp_Obsidian>("obsidian-mcp");
+
 IResourceBuilder<ContainerResource> playwrightMcp =
     builder.AddContainer("playwright-mcp", "mcr.microsoft.com/playwright/mcp")
         .WithArgs("--port", "3000", "--headless", "--host", "0.0.0.0", "--browser", "chromium", "--isolated")
@@ -85,6 +88,7 @@ IResourceBuilder<ProjectResource> api =
     .WithReference(projectsMcp)
     .WithReference(githubMcp)
     .WithReference(dotnetMcp)
+    .WithReference(obsidianMcp)
     .WithEnvironment(ctx =>
     {
         ctx.EnvironmentVariables["PlaywrightEndpoint"] = ReferenceExpression.Create(
@@ -99,6 +103,7 @@ IResourceBuilder<ProjectResource> api =
     .WaitFor(projectsMcp)
     .WaitFor(githubMcp)
     .WaitFor(dotnetMcp)
+    .WaitFor(obsidianMcp)
     .WaitFor(playwrightMcp);
 
 builder.AddProject<Projects.DailyWork_Web>("dailywork-web")
