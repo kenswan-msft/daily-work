@@ -32,6 +32,8 @@
   <Project Path="test/DailyWork.Web.Test/DailyWork.Web.Test.csproj" />
   <Project Path="src/DailyWork.Mcp.Shared/DailyWork.Mcp.Shared.csproj" />
   <Project Path="src/DailyWork.Mcp.GitHub/DailyWork.Mcp.GitHub.csproj" />
+  <Project Path="src/DailyWork.Mcp.Obsidian/DailyWork.Mcp.Obsidian.csproj" />
   <Project Path="test/DailyWork.Mcp.GitHub.Test/DailyWork.Mcp.GitHub.Test.csproj" />
   <Project Path="test/DailyWork.Mcp.DotNet.Test/DailyWork.Mcp.DotNet.Test.csproj" />
+  <Project Path="test/DailyWork.Mcp.Obsidian.Test/DailyWork.Mcp.Obsidian.Test.csproj" />
 </Solution>

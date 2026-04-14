@@ -19,6 +19,7 @@
     <ProjectReference Include="..\DailyWork.Mcp.Projects\DailyWork.Mcp.Projects.csproj" />
     <ProjectReference Include="..\DailyWork.Mcp.GitHub\DailyWork.Mcp.GitHub.csproj" />
     <ProjectReference Include="..\DailyWork.Mcp.DotNet\DailyWork.Mcp.DotNet.csproj" />
+    <ProjectReference Include="..\DailyWork.Mcp.Obsidian\DailyWork.Mcp.Obsidian.csproj" />
     <ProjectReference Include="..\DailyWork.Web\DailyWork.Web.csproj" />
   </ItemGroup>
 

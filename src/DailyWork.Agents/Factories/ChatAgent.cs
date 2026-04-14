@@ -18,6 +18,7 @@ public sealed class ChatAgent(
     [FromKeyedServices(AgentKeys.GitHub)] AITool gitHubAgentTool,
     [FromKeyedServices(AgentKeys.DotNet)] AITool dotNetAgentTool,
     [FromKeyedServices(AgentKeys.WebSearch)] AITool webSearchAgentTool,
+    [FromKeyedServices(AgentKeys.Obsidian)] AITool obsidianAgentTool,
     ILoggerFactory loggerFactory) : IAgentFactory
 {
     public static string AgentName => "chat";
@@ -75,6 +76,12 @@ public sealed class ChatAgent(
         or articles on non-Microsoft topics, checking the latest news or updates, or visiting
         specific URLs to retrieve content. The web search assistant uses a headless browser to
         navigate the web and extract information.
+
+        You have an Obsidian assistant available as a tool. Delegate to it for any requests
+        related to managing Obsidian vault notes, daily notes, searching vault content,
+        viewing backlinks or outgoing links, reading or updating YAML frontmatter, creating
+        notes from templates, or analyzing the vault graph structure. The Obsidian assistant
+        works directly with the user's local Obsidian vault files.
         """;
 
     public AIAgent Create() =>
@@ -86,7 +93,7 @@ public sealed class ChatAgent(
                 ChatOptions = new ChatOptions
                 {
                     Instructions = Instructions,
-                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, gitHubAgentTool, dotNetAgentTool, webSearchAgentTool]
+                    Tools = [goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, gitHubAgentTool, dotNetAgentTool, webSearchAgentTool, obsidianAgentTool]
                 },
                 ChatHistoryProvider = chatHistoryProvider
             },

@@ -26,4 +26,6 @@ public static class AgentKeys
     public const string DotNet = "dotnet";
 
     public const string WebSearch = "web-search";
+
+    public const string Obsidian = "obsidian";
 }
