@@ -24,4 +24,6 @@ public static class McpClientKeys
     public const string DotNet = "dotnet-mcp";
 
     public const string Playwright = "playwright-mcp";
+
+    public const string Obsidian = "obsidian-mcp";
 }

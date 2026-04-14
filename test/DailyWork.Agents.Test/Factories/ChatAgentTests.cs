@@ -41,7 +41,8 @@ public class ChatAgentTests
         AITool gitHubAgentTool = Substitute.For<AITool>();
         AITool dotNetAgentTool = Substitute.For<AITool>();
         AITool webSearchAgentTool = Substitute.For<AITool>();
-        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, gitHubAgentTool, dotNetAgentTool, webSearchAgentTool, NullLoggerFactory.Instance);
+        AITool obsidianAgentTool = Substitute.For<AITool>();
+        var sut = new ChatAgent(chatClient, chatHistoryProvider, goalsAgentTool, blackjackAgentTool, knowledgeAgentTool, microsoftDocsAgentTool, fileSystemAgentTool, projectsAgentTool, gitHubAgentTool, dotNetAgentTool, webSearchAgentTool, obsidianAgentTool, NullLoggerFactory.Instance);
 
         AIAgent agent = sut.Create();
 

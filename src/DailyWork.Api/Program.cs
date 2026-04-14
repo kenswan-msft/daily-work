@@ -41,6 +41,8 @@ builder.Services
     .AddAgentFactoryAsTool<DotNetAgent>(AgentKeys.DotNet)
     .AddMcpClient(McpClientKeys.Playwright, builder.Configuration)
     .AddAgentFactoryAsTool<WebSearchAgent>(AgentKeys.WebSearch)
+    .AddMcpClient(McpClientKeys.Obsidian, builder.Configuration)
+    .AddAgentFactoryAsTool<ObsidianAgent>(AgentKeys.Obsidian)
     .AddAgentFactory<ChatAgent>(AgentKeys.Chat);
 
 WebApplication app = builder.Build();
