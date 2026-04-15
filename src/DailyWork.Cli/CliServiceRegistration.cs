@@ -13,6 +13,8 @@ internal static class CliServiceRegistration
         {
             [$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.BaseAddress)}"] = "https://localhost:7048",
             [$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.ChatEndpoint)}"] = "/api/chat",
+            [$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.WebDashboardUrl)}"] = "https://localhost:7200",
+            [$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.AspireDashboardUrl)}"] = "https://localhost:17299",
         };
 
         configurationBuilder.AddInMemoryCollection(defaults);
@@ -44,6 +46,7 @@ internal static class CliServiceRegistration
 
         services.AddSingleton<IChatRenderer, SpectreConsoleChatRenderer>();
         services.AddSingleton<IChatInputReader, ConsoleChatInputReader>();
+        services.AddSingleton<IBrowserLauncher, ProcessBrowserLauncher>();
         services.AddSingleton<ApiHealthChecker>();
         services.AddSingleton<AppHostLauncher>();
         services.AddTransient<IChatAgent>(serviceProvider =>

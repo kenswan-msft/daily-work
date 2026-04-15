@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System.Net;
@@ -12,8 +13,10 @@ public class ChatOrchestratorTests
     private readonly IChatRenderer renderer = Substitute.For<IChatRenderer>();
     private readonly IChatInputReader inputReader = Substitute.For<IChatInputReader>();
     private readonly IChatAgent agent = Substitute.For<IChatAgent>();
+    private readonly IBrowserLauncher browserLauncher = Substitute.For<IBrowserLauncher>();
     private readonly MockHttpMessageHandler httpMessageHandler = new();
     private readonly ConversationHistoryClient historyClient;
+    private readonly DailyWorkApiOptions options;
     private readonly ChatOrchestrator sut;
 
     public ChatOrchestratorTests()
@@ -38,7 +41,10 @@ public class ChatOrchestratorTests
             });
         historyClient = new ConversationHistoryClient(httpClientFactory);
 
-        sut = new ChatOrchestrator(renderer, inputReader, agent, historyClient);
+        options = new DailyWorkApiOptions();
+        IOptions<DailyWorkApiOptions> wrappedOptions = Options.Create(options);
+
+        sut = new ChatOrchestrator(renderer, inputReader, agent, historyClient, browserLauncher, wrappedOptions);
     }
 
     [Fact]
@@ -400,6 +406,72 @@ public class ChatOrchestratorTests
                 Arg.Any<CancellationToken>())
             .Returns(new ChatResponseResult("response", []));
         inputReader.ReadInput().Returns("/knowledge", "/quit", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.DidNotReceive().RenderSlashCommandUnknown(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task RunAsync_DashboardCommand_OpensBrowserWithWebDashboardUrl()
+    {
+        options.WebDashboardUrl = "https://test-dashboard:9999";
+        inputReader.ReadInput().Returns("/dashboard", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        browserLauncher.Received(1).Open("https://test-dashboard:9999");
+        renderer.Received(1).RenderBrowserOpening("Dashboard", "https://test-dashboard:9999");
+    }
+
+    [Fact]
+    public async Task RunAsync_DashboardCommand_DoesNotSendToAgent()
+    {
+        inputReader.ReadInput().Returns("/dashboard", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        agent.DidNotReceive()
+            .StreamResponseAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RunAsync_DashboardCommand_DoesNotShowUnknownCommand()
+    {
+        inputReader.ReadInput().Returns("/dashboard", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        renderer.DidNotReceive().RenderSlashCommandUnknown(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task RunAsync_ServicesCommand_OpensBrowserWithAspireDashboardUrl()
+    {
+        options.AspireDashboardUrl = "https://test-aspire:8888";
+        inputReader.ReadInput().Returns("/services", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        browserLauncher.Received(1).Open("https://test-aspire:8888");
+        renderer.Received(1).RenderBrowserOpening("Aspire Services", "https://test-aspire:8888");
+    }
+
+    [Fact]
+    public async Task RunAsync_ServicesCommand_DoesNotSendToAgent()
+    {
+        inputReader.ReadInput().Returns("/services", ":q");
+
+        await sut.RunAsync(CancellationToken.None);
+
+        agent.DidNotReceive()
+            .StreamResponseAsync(Arg.Any<IReadOnlyList<ChatMessage>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RunAsync_ServicesCommand_DoesNotShowUnknownCommand()
+    {
+        inputReader.ReadInput().Returns("/services", ":q");
 
         await sut.RunAsync(CancellationToken.None);
 
