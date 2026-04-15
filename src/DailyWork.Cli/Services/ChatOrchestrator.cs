@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 
 namespace DailyWork.Cli;
 
@@ -7,7 +8,9 @@ public class ChatOrchestrator(
     IChatRenderer renderer,
     IChatInputReader inputReader,
     IChatAgent agent,
-    ConversationHistoryClient historyClient)
+    ConversationHistoryClient historyClient,
+    IBrowserLauncher browserLauncher,
+    IOptions<DailyWorkApiOptions> apiOptions)
 {
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -94,6 +97,8 @@ public class ChatOrchestrator(
                 .ConfigureAwait(false),
             "/knowledge" => await HandleKnowledgeCommandAsync(messages, cancellationToken)
                 .ConfigureAwait(false),
+            "/dashboard" => HandleDashboardCommand(),
+            "/services" => HandleServicesCommand(),
             _ => false,
         };
     }
@@ -278,6 +283,22 @@ public class ChatOrchestrator(
             }
         }
 
+        return true;
+    }
+
+    internal bool HandleDashboardCommand()
+    {
+        string url = apiOptions.Value.WebDashboardUrl;
+        renderer.RenderBrowserOpening("Dashboard", url);
+        browserLauncher.Open(url);
+        return true;
+    }
+
+    internal bool HandleServicesCommand()
+    {
+        string url = apiOptions.Value.AspireDashboardUrl;
+        renderer.RenderBrowserOpening("Aspire Services", url);
+        browserLauncher.Open(url);
         return true;
     }
 }

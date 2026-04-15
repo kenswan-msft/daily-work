@@ -37,6 +37,12 @@ public class StartChatCommandTests
         Assert.Equal(
             "/api/chat",
             configuration[$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.ChatEndpoint)}"]);
+        Assert.Equal(
+            "https://localhost:7200",
+            configuration[$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.WebDashboardUrl)}"]);
+        Assert.Equal(
+            "https://localhost:17299",
+            configuration[$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.AspireDashboardUrl)}"]);
     }
 
     [Fact]
@@ -44,11 +50,15 @@ public class StartChatCommandTests
     {
         const string BaseAddress = "https://contoso.test";
         const string ChatEndpoint = "/chat/live";
+        const string WebDashboardUrl = "https://web.contoso.test";
+        const string AspireDashboardUrl = "https://aspire.contoso.test";
 
         Dictionary<string, string?> values = new()
         {
             [$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.BaseAddress)}"] = BaseAddress,
             [$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.ChatEndpoint)}"] = ChatEndpoint,
+            [$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.WebDashboardUrl)}"] = WebDashboardUrl,
+            [$"{nameof(DailyWorkApiOptions)}:{nameof(DailyWorkApiOptions.AspireDashboardUrl)}"] = AspireDashboardUrl,
         };
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(values)
@@ -67,6 +77,8 @@ public class StartChatCommandTests
         Assert.Equal(new Uri(BaseAddress), client.BaseAddress);
         Assert.Equal(BaseAddress, apiOptions.Value.BaseAddress);
         Assert.Equal(ChatEndpoint, apiOptions.Value.ChatEndpoint);
+        Assert.Equal(WebDashboardUrl, apiOptions.Value.WebDashboardUrl);
+        Assert.Equal(AspireDashboardUrl, apiOptions.Value.AspireDashboardUrl);
     }
 
     [Fact]
@@ -89,6 +101,7 @@ public class StartChatCommandTests
 
         Assert.IsType<SpectreConsoleChatRenderer>(provider.GetRequiredService<IChatRenderer>());
         Assert.IsType<ConsoleChatInputReader>(provider.GetRequiredService<IChatInputReader>());
+        Assert.IsType<ProcessBrowserLauncher>(provider.GetRequiredService<IBrowserLauncher>());
         Assert.IsType<AguiChatAgent>(provider.GetRequiredService<IChatAgent>());
         Assert.NotNull(provider.GetRequiredService<ChatOrchestrator>());
     }
