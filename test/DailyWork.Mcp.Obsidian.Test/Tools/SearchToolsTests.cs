@@ -10,95 +10,62 @@ namespace DailyWork.Mcp.Obsidian.Test.Tools;
 
 public class SearchToolsTests
 {
-    private readonly ICliRunner cliRunner = Substitute.For<ICliRunner>();
+    private readonly IObsidianCliService obsidianCli = Substitute.For<IObsidianCliService>();
     private readonly SearchTools sut;
 
     public SearchToolsTests()
     {
-        IOptions<ObsidianOptions> options = Options.Create(new ObsidianOptions
-        {
-            Vaults = [new VaultConfig { Name = "TestVault", Path = "/fake/vault" }]
-        });
-
-        var vaultService = new VaultService(options, NullLogger<VaultService>.Instance);
-        sut = new SearchTools(cliRunner, vaultService, NullLogger<SearchTools>.Instance);
+        IOptions<ObsidianOptions> options = Options.Create(new ObsidianOptions());
+        sut = new SearchTools(obsidianCli, options, NullLogger<SearchTools>.Instance);
     }
 
     [Fact]
     public async Task SearchNotes_NoMatches_ReturnsEmptyResults()
     {
-        cliRunner
-            .RunAsync("grep", Arg.Is<string>(a => a.Contains("-rl")), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(1, string.Empty, string.Empty));
+        obsidianCli
+            .SearchAsync("nonexistent", 20, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(1, string.Empty, "No results"));
 
         dynamic result = await sut.SearchNotes("nonexistent", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("nonexistent", (string)result.Query);
-        var results = (Array)result.Results;
-        Assert.Empty(results);
+        Assert.Equal(0, (int)result.Count);
     }
 
     [Fact]
     public async Task SearchNotes_WithMatches_ReturnsParsedResults()
     {
-        cliRunner
-            .RunAsync("grep", Arg.Is<string>(a => a.Contains("-rl")), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(0, "/fake/vault/notes/hello.md\n", string.Empty));
-
-        cliRunner
-            .RunAsync("grep", Arg.Is<string>(a => a.Contains("-n") && a.Contains("hello.md")), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(0, "3:matching line content", string.Empty));
+        obsidianCli
+            .SearchAsync("matching", 20, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "notes/hello.md\nnotes/world.md", string.Empty));
 
         dynamic result = await sut.SearchNotes("matching", cancellationToken: TestContext.Current.CancellationToken);
 
-        var results = (List<object>)result.Results;
-        Assert.Single(results);
-
-        dynamic first = results[0];
-        Assert.Equal("notes/hello.md", (string)first.File);
-        Assert.Equal("3", (string)first.Line);
-        Assert.Equal("matching line content", (string)first.Content);
+        Assert.Equal("matching", (string)result.Query);
+        Assert.Equal(2, (int)result.Count);
     }
 
     [Fact]
-    public async Task FindByTag_WithInlineTag_ReturnsMatchingFiles()
+    public async Task SearchWithContext_Success_ReturnsContextResults()
     {
-        // Inline tag grep
-        cliRunner
-            .RunAsync("grep", Arg.Is<string>(a => a.Contains("#project")), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(0, "/fake/vault/tagged.md\n", string.Empty));
+        obsidianCli
+            .SearchWithContextAsync("query", null, 20, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "{\"results\": []}", string.Empty));
 
-        // Frontmatter tag grep
-        cliRunner
-            .RunAsync("grep", Arg.Is<string>(a => a.Contains("tags:")), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(1, string.Empty, string.Empty));
+        dynamic result = await sut.SearchWithContext("query", cancellationToken: TestContext.Current.CancellationToken);
 
-        dynamic result = await sut.FindByTag("#project", cancellationToken: TestContext.Current.CancellationToken);
-
-        Assert.Equal("project", (string)result.Tag);
-        var files = (List<string>)result.Files;
-        Assert.Single(files);
-        Assert.Equal("tagged.md", files[0]);
+        Assert.Equal("query", (string)result.Query);
     }
 
     [Fact]
-    public async Task ListTags_WithTags_ReturnsSortedByFrequency()
+    public async Task SearchWithContext_WithPath_PassesPathToCli()
     {
-        cliRunner
-            .RunAsync("grep", Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(0, "#project\n#todo\n#project\n#project\n#todo\n", string.Empty));
+        obsidianCli
+            .SearchWithContextAsync("query", "subfolder", 20, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "{}", string.Empty));
 
-        dynamic result = await sut.ListTags(cancellationToken: TestContext.Current.CancellationToken);
+        await sut.SearchWithContext("query", "subfolder", cancellationToken: TestContext.Current.CancellationToken);
 
-        object[] tags = (object[])result.Tags;
-        Assert.Equal(2, tags.Length);
-
-        dynamic first = tags[0];
-        Assert.Equal("#project", (string)first.Tag);
-        Assert.Equal(3, (int)first.Count);
-
-        dynamic second = tags[1];
-        Assert.Equal("#todo", (string)second.Tag);
-        Assert.Equal(2, (int)second.Count);
+        await obsidianCli.Received(1).SearchWithContextAsync("query", "subfolder", 20, Arg.Any<CancellationToken>());
     }
 }

@@ -8,108 +8,113 @@ using NSubstitute;
 
 namespace DailyWork.Mcp.Obsidian.Test.Tools;
 
-public class NoteToolsTests : IDisposable
+public class NoteToolsTests
 {
-    private readonly string tempVaultPath;
-    private readonly ICliRunner cliRunner = Substitute.For<ICliRunner>();
+    private readonly IObsidianCliService obsidianCli = Substitute.For<IObsidianCliService>();
     private readonly NoteTools sut;
 
     public NoteToolsTests()
     {
-        tempVaultPath = Path.Combine(Path.GetTempPath(), "obsidian-test-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempVaultPath);
-
-        IOptions<ObsidianOptions> options = Options.Create(new ObsidianOptions
-        {
-            Vaults = [new VaultConfig { Name = "TestVault", Path = tempVaultPath }]
-        });
-
-        var vaultService = new VaultService(options, NullLogger<VaultService>.Instance);
-        sut = new NoteTools(cliRunner, vaultService, NullLogger<NoteTools>.Instance);
+        IOptions<ObsidianOptions> options = Options.Create(new ObsidianOptions());
+        sut = new NoteTools(obsidianCli, options, NullLogger<NoteTools>.Instance);
     }
 
     [Fact]
-    public async Task ReadNote_NoteExists_ReturnsContent()
+    public async Task ReadNote_Success_ReturnsContent()
     {
-        string notePath = Path.Combine(tempVaultPath, "hello.md");
-        await File.WriteAllTextAsync(notePath, "# Hello World", TestContext.Current.CancellationToken);
+        obsidianCli
+            .ReadNoteAsync("hello.md", Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "# Hello World", string.Empty));
 
-        dynamic result = await sut.ReadNote("hello.md", cancellationToken: TestContext.Current.CancellationToken);
+        dynamic result = await sut.ReadNote("hello.md", TestContext.Current.CancellationToken);
 
         Assert.Equal("# Hello World", (string)result.Content);
         Assert.Equal("hello.md", (string)result.Path);
     }
 
     [Fact]
-    public async Task ReadNote_NoteNotFound_ReturnsError()
+    public async Task ReadNote_CliFailure_ReturnsError()
     {
-        dynamic result = await sut.ReadNote("nonexistent.md", cancellationToken: TestContext.Current.CancellationToken);
+        obsidianCli
+            .ReadNoteAsync("nonexistent.md", Arg.Any<CancellationToken>())
+            .Returns(new CliResult(1, string.Empty, "Note not found"));
 
-        Assert.Contains("not found", (string)result.Error);
+        dynamic result = await sut.ReadNote("nonexistent.md", TestContext.Current.CancellationToken);
+
+        Assert.Equal("Note not found", (string)result.Error);
     }
 
     [Fact]
-    public async Task ReadNote_PathOutsideVault_ReturnsError()
+    public async Task CreateNote_Success_ReturnsCreated()
     {
-        dynamic result = await sut.ReadNote("../../etc/passwd", cancellationToken: TestContext.Current.CancellationToken);
+        obsidianCli
+            .CreateNoteAsync("new-note.md", "Test content", false, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "Created", string.Empty));
 
-        Assert.Contains("outside the vault", (string)result.Error);
-    }
-
-    [Fact]
-    public async Task CreateNote_NewNote_CreatesFileSuccessfully()
-    {
-        dynamic result = await sut.CreateNote("new-note.md", "Test content", cancellationToken: TestContext.Current.CancellationToken);
+        dynamic result = await sut.CreateNote("new-note.md", "Test content", TestContext.Current.CancellationToken);
 
         Assert.True((bool)result.Created);
-
-        string fullPath = Path.Combine(tempVaultPath, "new-note.md");
-        Assert.True(File.Exists(fullPath));
-        Assert.Equal("Test content", await File.ReadAllTextAsync(fullPath, TestContext.Current.CancellationToken));
+        Assert.Equal("new-note.md", (string)result.Path);
     }
 
     [Fact]
-    public async Task CreateNote_NoteAlreadyExists_ReturnsError()
+    public async Task UpdateNote_Success_ReturnsUpdated()
     {
-        string notePath = Path.Combine(tempVaultPath, "existing.md");
-        await File.WriteAllTextAsync(notePath, "Existing content", TestContext.Current.CancellationToken);
+        obsidianCli
+            .CreateNoteAsync("existing.md", "New content", true, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "Updated", string.Empty));
 
-        dynamic result = await sut.CreateNote("existing.md", "New content", cancellationToken: TestContext.Current.CancellationToken);
+        dynamic result = await sut.UpdateNote("existing.md", "New content", TestContext.Current.CancellationToken);
 
-        Assert.Contains("already exists", (string)result.Error);
+        Assert.True((bool)result.Updated);
     }
 
     [Fact]
-    public async Task DeleteNote_NoteExists_DeletesFile()
+    public async Task DeleteNote_Success_ReturnsDeleted()
     {
-        string notePath = Path.Combine(tempVaultPath, "to-delete.md");
-        await File.WriteAllTextAsync(notePath, "Delete me", TestContext.Current.CancellationToken);
+        obsidianCli
+            .DeleteNoteAsync("to-delete.md", Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "Deleted", string.Empty));
 
-        dynamic result = await sut.DeleteNote("to-delete.md");
+        dynamic result = await sut.DeleteNote("to-delete.md", TestContext.Current.CancellationToken);
 
         Assert.True((bool)result.Deleted);
-        Assert.False(File.Exists(notePath));
     }
 
     [Fact]
-    public async Task AppendToNote_NoteExists_AppendsContent()
+    public async Task AppendToNote_Success_ReturnsAppended()
     {
-        string notePath = Path.Combine(tempVaultPath, "append.md");
-        await File.WriteAllTextAsync(notePath, "Hello", TestContext.Current.CancellationToken);
+        obsidianCli
+            .AppendToNoteAsync("note.md", " World", Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "Appended", string.Empty));
 
-        await sut.AppendToNote("append.md", " World", cancellationToken: TestContext.Current.CancellationToken);
+        dynamic result = await sut.AppendToNote("note.md", " World", TestContext.Current.CancellationToken);
 
-        string content = await File.ReadAllTextAsync(notePath, TestContext.Current.CancellationToken);
-        Assert.Equal("Hello World", content);
+        Assert.True((bool)result.Appended);
     }
 
-    public void Dispose()
+    [Fact]
+    public async Task ListNotes_Success_ReturnsNoteList()
     {
-        if (Directory.Exists(tempVaultPath))
-        {
-            Directory.Delete(tempVaultPath, recursive: true);
-        }
+        obsidianCli
+            .ListFilesAsync(null, null, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "notes/hello.md\nnotes/world.md\n", string.Empty));
 
-        GC.SuppressFinalize(this);
+        dynamic result = await sut.ListNotes(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, (int)result.Count);
+    }
+
+    [Fact]
+    public async Task ListNotes_WithFolder_PassesFolderToCli()
+    {
+        obsidianCli
+            .ListFilesAsync("subfolder", null, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "subfolder/note.md\n", string.Empty));
+
+        dynamic result = await sut.ListNotes("subfolder", cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal("subfolder", (string)result.Folder);
+        Assert.Equal(1, (int)result.Count);
     }
 }

@@ -2,188 +2,82 @@ using System.ComponentModel;
 using DailyWork.Mcp.Obsidian.Configuration;
 using DailyWork.Mcp.Obsidian.Services;
 using DailyWork.Mcp.Shared;
+using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Obsidian.Tools;
 
 [McpServerToolType]
-public class SearchTools(ICliRunner cliRunner, VaultService vaultService, ILogger<SearchTools> logger)
+public class SearchTools(
+    IObsidianCliService obsidianCli,
+    IOptions<ObsidianOptions> options,
+    ILogger<SearchTools> logger)
 {
-    [McpServerTool, Description("Search for notes containing a text query, returning matching lines with file paths and line numbers")]
+    private readonly ObsidianOptions config = options.Value;
+
+    [McpServerTool, Description("Search for notes containing the given text query")]
     public async Task<object> SearchNotes(
         string query,
-        string? vault = null,
         int limit = 20,
         CancellationToken cancellationToken = default)
     {
-        VaultConfig? vaultConfig = vaultService.GetVault(vault);
-        if (vaultConfig is null)
+        logger.LogInformation("Searching notes for '{Query}'", query);
+
+        CliResult result = await obsidianCli.SearchAsync(query, limit, cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            return new { Error = $"Vault '{vault}' not found" };
+            return Enrich(
+                new { Query = query, Count = 0, Matches = Array.Empty<object>(), Error = result.Error.Length > 0 ? result.Error : result.Output },
+                result);
         }
 
-        string vaultPath = vaultConfig.Path;
-        logger.LogInformation("Searching notes for '{Query}' in vault '{Vault}'", query, vaultConfig.Name);
+        string[] lines = result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        CliResult fileResult = await cliRunner.RunAsync(
-            "grep", $"-rl --include=\"*.md\" \"{query}\" \"{vaultPath}\"",
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        if (!fileResult.IsSuccess && string.IsNullOrWhiteSpace(fileResult.Output))
-        {
-            logger.LogInformation("No notes matched query '{Query}'", query);
-            return new { Query = query, Results = Array.Empty<object>() };
-        }
-
-        string[] matchingFiles = fileResult.Output
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        var results = new List<object>();
-
-        foreach (string filePath in matchingFiles)
-        {
-            if (results.Count >= limit)
-            {
-                break;
-            }
-
-            CliResult lineResult = await cliRunner.RunAsync(
-                "grep", $"-n \"{query}\" \"{filePath}\"",
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (!lineResult.IsSuccess)
-            {
-                continue;
-            }
-
-            string[] lines = lineResult.Output
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-            string relativePath = GetRelativePath(filePath, vaultPath);
-
-            foreach (string line in lines)
-            {
-                if (results.Count >= limit)
-                {
-                    break;
-                }
-
-                int colonIndex = line.IndexOf(':');
-                if (colonIndex <= 0)
-                {
-                    continue;
-                }
-
-                string lineNumber = line[..colonIndex];
-                string content = line[(colonIndex + 1)..];
-
-                results.Add(new { File = relativePath, Line = lineNumber, Content = content.Trim() });
-            }
-        }
-
-        return new { Query = query, Results = results };
-    }
-
-    [McpServerTool, Description("Find notes containing a specific tag, searching both inline tags and frontmatter")]
-    public async Task<object> FindByTag(
-        string tag,
-        string? vault = null,
-        int limit = 20,
-        CancellationToken cancellationToken = default)
-    {
-        VaultConfig? vaultConfig = vaultService.GetVault(vault);
-        if (vaultConfig is null)
-        {
-            return new { Error = $"Vault '{vault}' not found" };
-        }
-
-        string vaultPath = vaultConfig.Path;
-        string normalizedTag = tag.TrimStart('#');
-        logger.LogInformation("Finding notes with tag '#{Tag}' in vault '{Vault}'", normalizedTag, vaultConfig.Name);
-
-        // Search for inline #tag usage
-        CliResult inlineResult = await cliRunner.RunAsync(
-            "grep", $"-rl --include=\"*.md\" \"#{normalizedTag}\" \"{vaultPath}\"",
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        // Search for frontmatter tags field
-        CliResult frontmatterResult = await cliRunner.RunAsync(
-            "grep", $"-rl --include=\"*.md\" \"tags:.*{normalizedTag}\" \"{vaultPath}\"",
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        var matchingFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        if (!string.IsNullOrWhiteSpace(inlineResult.Output))
-        {
-            foreach (string file in inlineResult.Output
-                         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                matchingFiles.Add(file);
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(frontmatterResult.Output))
-        {
-            foreach (string file in frontmatterResult.Output
-                         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                matchingFiles.Add(file);
-            }
-        }
-
-        var relativePaths = matchingFiles
-            .Take(limit)
-            .Select(f => GetRelativePath(f, vaultPath))
+        var matches = lines
+            .Select(line => (object)new { Path = line })
             .ToList();
 
-        logger.LogInformation("Found {Count} notes with tag '#{Tag}'", relativePaths.Count, normalizedTag);
-
-        return new { Tag = normalizedTag, Files = relativePaths };
+        return Enrich(new { Query = query, Count = matches.Count, Matches = matches }, result);
     }
 
-    [McpServerTool, Description("List all tags used across the vault with their occurrence counts, sorted by frequency")]
-    public async Task<object> ListTags(
-        string? vault = null,
-        int limit = 50,
+    [McpServerTool, Description("Search for notes containing the given text, returning matching lines with surrounding context")]
+    public async Task<object> SearchWithContext(
+        string query,
+        [Description("Optional folder path to limit search scope")] string? path = null,
+        int limit = 20,
         CancellationToken cancellationToken = default)
     {
-        VaultConfig? vaultConfig = vaultService.GetVault(vault);
-        if (vaultConfig is null)
+        logger.LogInformation("Searching notes with context for '{Query}'", query);
+
+        CliResult result = await obsidianCli.SearchWithContextAsync(query, path, limit, cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            return new { Error = $"Vault '{vault}' not found" };
+            return Enrich(
+                new { Query = query, Count = 0, Error = result.Error.Length > 0 ? result.Error : result.Output },
+                result);
         }
 
-        string vaultPath = vaultConfig.Path;
-        logger.LogInformation("Listing tags in vault '{Vault}'", vaultConfig.Name);
-
-        CliResult result = await cliRunner.RunAsync(
-            "grep", $"-rohE --include=\"*.md\" '#[a-zA-Z0-9/_-]+' \"{vaultPath}\"",
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        if (!result.IsSuccess && string.IsNullOrWhiteSpace(result.Output))
-        {
-            logger.LogInformation("No tags found in vault '{Vault}'", vaultConfig.Name);
-            return new { Tags = Array.Empty<object>() };
-        }
-
-        var tags = result.Output
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .GroupBy(t => t, StringComparer.OrdinalIgnoreCase)
-            .Select(g => new { Tag = g.Key, Count = g.Count() })
-            .OrderByDescending(t => t.Count)
-            .Take(limit)
-            .ToArray();
-
-        return new { Tags = tags };
+        return Enrich(new { Query = query, Results = result.Output }, result);
     }
 
-    private static string GetRelativePath(string filePath, string vaultPath)
+    private object Enrich(object response, CliResult cliResult)
     {
-        string normalized = Path.GetFullPath(filePath);
-        string normalizedVault = Path.GetFullPath(vaultPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!config.Verbose)
+        {
+            return response;
+        }
 
-        return normalized.StartsWith(normalizedVault, StringComparison.OrdinalIgnoreCase)
-            ? normalized[normalizedVault.Length..]
-            : filePath;
+        return new
+        {
+            Result = response,
+            Diagnostics = new
+            {
+                cliResult.ExecutedCommand,
+                cliResult.ExecutedArguments,
+                cliResult.ExitCode
+            }
+        };
     }
 }

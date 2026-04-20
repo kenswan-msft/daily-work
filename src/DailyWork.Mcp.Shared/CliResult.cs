@@ -6,4 +6,6 @@ namespace DailyWork.Mcp.Shared;
 public sealed record CliResult(int ExitCode, string Output, string Error)
 {
     public bool IsSuccess => ExitCode == 0;
+    public string? ExecutedCommand { get; init; }
+    public string? ExecutedArguments { get; init; }
 }
