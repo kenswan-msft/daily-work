@@ -1,119 +1,88 @@
 using System.ComponentModel;
+using DailyWork.Mcp.Obsidian.Configuration;
 using DailyWork.Mcp.Obsidian.Services;
+using DailyWork.Mcp.Shared;
+using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Obsidian.Tools;
 
 [McpServerToolType]
-public class TemplateTools(VaultService vaultService, ILogger<TemplateTools> logger)
+public class TemplateTools(
+    IObsidianCliService obsidianCli,
+    IOptions<ObsidianOptions> options,
+    ILogger<TemplateTools> logger)
 {
-    [McpServerTool, Description("List available note templates in the Obsidian vault")]
-    public Task<object> ListTemplates(
-        string? vault = null,
+    private readonly ObsidianOptions config = options.Value;
+
+    [McpServerTool, Description("List available note templates")]
+    public async Task<object> ListTemplates(
         CancellationToken cancellationToken = default)
     {
-        _ = cancellationToken;
+        logger.LogInformation("Listing templates");
 
-        Configuration.VaultConfig? vaultConfig = vaultService.GetVault(vault);
-        if (vaultConfig is null)
+        CliResult result = await obsidianCli.ListTemplatesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            return Task.FromResult<object>(vault is null
-                ? new { Error = "No vault configured" }
-                : new { Error = $"Vault '{vault}' not found" });
+            return Enrich(new { Error = result.Error.Length > 0 ? result.Error : result.Output }, result);
         }
 
-        string templateFolder = vaultService.ResolveTemplateFolder(vaultConfig.Path);
-
-        if (!Directory.Exists(templateFolder))
-        {
-            return Task.FromResult<object>(new
-            {
-                Vault = vaultConfig.Name,
-                Templates = Array.Empty<string>(),
-                Message = "Template folder does not exist"
-            });
-        }
-
-        logger.LogInformation("Listing templates in vault '{Vault}'", vaultConfig.Name);
-
-        string[] templates = Directory.GetFiles(templateFolder, "*.md")
-            .Select(f => Path.GetFileNameWithoutExtension(f))
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        return Task.FromResult<object>(new
-        {
-            Vault = vaultConfig.Name,
-            Count = templates.Length,
-            Templates = templates
-        });
+        string[] lines = result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return Enrich(new { Count = lines.Length, Templates = lines }, result);
     }
 
-    [McpServerTool, Description("Create a new note from a template, substituting variables like {{date}}, {{title}}, and {{time}}")]
-    public async Task<object> CreateFromTemplate(
-        string templateName,
-        string notePath,
-        string? vault = null,
+    [McpServerTool, Description("Read the content of a note template")]
+    public async Task<object> ReadTemplate(
+        [Description("Template name")] string name,
         CancellationToken cancellationToken = default)
     {
-        Configuration.VaultConfig? vaultConfig = vaultService.GetVault(vault);
-        if (vaultConfig is null)
+        logger.LogInformation("Reading template '{Name}'", name);
+
+        CliResult result = await obsidianCli.ReadTemplateAsync(name, cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            return vault is null
-                ? new { Error = "No vault configured" }
-                : new { Error = $"Vault '{vault}' not found" };
+            return Enrich(new { Error = result.Error.Length > 0 ? result.Error : result.Output }, result);
         }
 
-        string templateFolder = vaultService.ResolveTemplateFolder(vaultConfig.Path);
-        string templateFile = Path.Combine(templateFolder, templateName.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
-            ? templateName
-            : templateName + ".md");
+        return Enrich(new { Name = name, Content = result.Output }, result);
+    }
 
-        if (!File.Exists(templateFile))
+    [McpServerTool, Description("Create a new note from a template")]
+    public async Task<object> CreateFromTemplate(
+        [Description("File path for the new note")] string path,
+        [Description("Template name to use")] string templateName,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Creating note '{Path}' from template '{Template}'", path, templateName);
+
+        CliResult result = await obsidianCli.CreateNoteFromTemplateAsync(path, templateName, cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            return new { Error = $"Template not found: {templateName}" };
+            return Enrich(new { Error = result.Error.Length > 0 ? result.Error : result.Output }, result);
         }
 
-        string fullNotePath = vaultService.ResolveNotePath(vaultConfig.Path, notePath);
+        return Enrich(new { Path = path, Template = templateName, Created = true }, result);
+    }
 
-        if (!vaultService.IsInsideVault(fullNotePath, vaultConfig.Path))
+    private object Enrich(object response, CliResult cliResult)
+    {
+        if (!config.Verbose)
         {
-            return new { Error = "Note path is outside the vault" };
+            return response;
         }
-
-        if (File.Exists(fullNotePath))
-        {
-            return new { Error = $"Note already exists: {notePath}" };
-        }
-
-        logger.LogInformation(
-            "Creating note '{NotePath}' from template '{Template}' in vault '{Vault}'",
-            notePath, templateName, vaultConfig.Name);
-
-        string templateContent = await File.ReadAllTextAsync(templateFile, cancellationToken).ConfigureAwait(false);
-
-        string title = Path.GetFileNameWithoutExtension(notePath);
-        DateTime now = DateTime.Now;
-
-        string content = templateContent
-            .Replace("{{date}}", now.ToString("yyyy-MM-dd"), StringComparison.OrdinalIgnoreCase)
-            .Replace("{{title}}", title, StringComparison.OrdinalIgnoreCase)
-            .Replace("{{time}}", now.ToString("HH:mm"), StringComparison.OrdinalIgnoreCase);
-
-        string? directory = Path.GetDirectoryName(fullNotePath);
-        if (directory is not null && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        await File.WriteAllTextAsync(fullNotePath, content, cancellationToken).ConfigureAwait(false);
 
         return new
         {
-            Path = Path.GetRelativePath(vaultConfig.Path, fullNotePath),
-            Vault = vaultConfig.Name,
-            Template = templateName,
-            Created = true
+            Result = response,
+            Diagnostics = new
+            {
+                cliResult.ExecutedCommand,
+                cliResult.ExecutedArguments,
+                cliResult.ExitCode
+            }
         };
     }
 }

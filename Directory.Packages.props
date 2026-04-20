@@ -35,7 +35,6 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
-    <PackageVersion Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 
   <ItemGroup Label="Test Packages">

@@ -1,157 +1,102 @@
 using System.ComponentModel;
-using System.Globalization;
+using DailyWork.Mcp.Obsidian.Configuration;
 using DailyWork.Mcp.Obsidian.Services;
+using DailyWork.Mcp.Shared;
+using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
 namespace DailyWork.Mcp.Obsidian.Tools;
 
 [McpServerToolType]
-public class DailyNoteTools(VaultService vaultService, ILogger<DailyNoteTools> logger)
+public class DailyNoteTools(
+    IObsidianCliService obsidianCli,
+    IOptions<ObsidianOptions> options,
+    ILogger<DailyNoteTools> logger)
 {
-    [McpServerTool, Description("Create today's daily note in the Obsidian vault")]
-    public async Task<object> CreateDailyNote(
-        string? content = null,
-        string? vault = null,
+    private readonly ObsidianOptions config = options.Value;
+
+    [McpServerTool, Description("Read the content of today's daily note")]
+    public async Task<object> ReadDailyNote(
         CancellationToken cancellationToken = default)
     {
-        Configuration.VaultConfig? vaultConfig = vaultService.GetVault(vault);
-        if (vaultConfig is null)
+        logger.LogInformation("Reading daily note");
+
+        CliResult result = await obsidianCli.ReadDailyNoteAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            return vault is null
-                ? new { Error = "No vault configured" }
-                : new { Error = $"Vault '{vault}' not found" };
+            return Enrich(new { Error = result.Error.Length > 0 ? result.Error : result.Output }, result);
         }
 
-        string fullPath = vaultService.ResolveDailyNotePath(vaultConfig.Path);
-
-        if (!vaultService.IsInsideVault(fullPath, vaultConfig.Path))
-        {
-            return new { Error = "Resolved daily note path is outside the vault" };
-        }
-
-        if (File.Exists(fullPath))
-        {
-            string relativePath = Path.GetRelativePath(vaultConfig.Path, fullPath);
-            return new { Error = $"Daily note already exists: {relativePath}" };
-        }
-
-        string? directory = Path.GetDirectoryName(fullPath);
-        if (directory is not null && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        logger.LogInformation("Creating daily note at '{Path}' in vault '{Vault}'", fullPath, vaultConfig.Name);
-
-        await File.WriteAllTextAsync(fullPath, content ?? string.Empty, cancellationToken).ConfigureAwait(false);
-
-        return new
-        {
-            Path = Path.GetRelativePath(vaultConfig.Path, fullPath),
-            Vault = vaultConfig.Name,
-            Created = true
-        };
+        return Enrich(new { Content = result.Output }, result);
     }
 
-    [McpServerTool, Description("Read the daily note for a given date (defaults to today) from the Obsidian vault")]
-    public async Task<object> GetDailyNote(
-        string? date = null,
-        string? vault = null,
-        CancellationToken cancellationToken = default)
-    {
-        Configuration.VaultConfig? vaultConfig = vaultService.GetVault(vault);
-        if (vaultConfig is null)
-        {
-            return vault is null
-                ? new { Error = "No vault configured" }
-                : new { Error = $"Vault '{vault}' not found" };
-        }
-
-        DateTime noteDate = DateTime.Now;
-        if (date is not null)
-        {
-            if (!DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out noteDate))
-            {
-                return new { Error = $"Invalid date format: '{date}'. Expected yyyy-MM-dd" };
-            }
-        }
-
-        string fullPath = vaultService.ResolveDailyNotePath(vaultConfig.Path, noteDate);
-
-        if (!vaultService.IsInsideVault(fullPath, vaultConfig.Path))
-        {
-            return new { Error = "Resolved daily note path is outside the vault" };
-        }
-
-        if (!File.Exists(fullPath))
-        {
-            string relativePath = Path.GetRelativePath(vaultConfig.Path, fullPath);
-            return new { Error = $"Daily note not found: {relativePath}" };
-        }
-
-        logger.LogInformation("Reading daily note for {Date} in vault '{Vault}'", noteDate.ToString("yyyy-MM-dd"), vaultConfig.Name);
-
-        string content = await File.ReadAllTextAsync(fullPath, cancellationToken).ConfigureAwait(false);
-
-        return new
-        {
-            Path = Path.GetRelativePath(vaultConfig.Path, fullPath),
-            Vault = vaultConfig.Name,
-            Date = noteDate.ToString("yyyy-MM-dd"),
-            Content = content
-        };
-    }
-
-    [McpServerTool, Description("Append content to the daily note for a given date (defaults to today), creating it if it doesn't exist")]
+    [McpServerTool, Description("Append content to today's daily note")]
     public async Task<object> AppendToDailyNote(
         string content,
-        string? date = null,
-        string? vault = null,
         CancellationToken cancellationToken = default)
     {
-        Configuration.VaultConfig? vaultConfig = vaultService.GetVault(vault);
-        if (vaultConfig is null)
+        logger.LogInformation("Appending to daily note");
+
+        CliResult result = await obsidianCli.AppendToDailyNoteAsync(content, cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            return vault is null
-                ? new { Error = "No vault configured" }
-                : new { Error = $"Vault '{vault}' not found" };
+            return Enrich(new { Error = result.Error.Length > 0 ? result.Error : result.Output }, result);
         }
 
-        DateTime noteDate = DateTime.Now;
-        if (date is not null)
+        return Enrich(new { Appended = true }, result);
+    }
+
+    [McpServerTool, Description("Prepend content to today's daily note")]
+    public async Task<object> PrependToDailyNote(
+        string content,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Prepending to daily note");
+
+        CliResult result = await obsidianCli.PrependToDailyNoteAsync(content, cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            if (!DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out noteDate))
-            {
-                return new { Error = $"Invalid date format: '{date}'. Expected yyyy-MM-dd" };
-            }
+            return Enrich(new { Error = result.Error.Length > 0 ? result.Error : result.Output }, result);
         }
 
-        string fullPath = vaultService.ResolveDailyNotePath(vaultConfig.Path, noteDate);
+        return Enrich(new { Prepended = true }, result);
+    }
 
-        if (!vaultService.IsInsideVault(fullPath, vaultConfig.Path))
+    [McpServerTool, Description("Get the file path of today's daily note")]
+    public async Task<object> GetDailyNotePath(
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Getting daily note path");
+
+        CliResult result = await obsidianCli.GetDailyNotePathAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
-            return new { Error = "Resolved daily note path is outside the vault" };
+            return Enrich(new { Error = result.Error.Length > 0 ? result.Error : result.Output }, result);
         }
 
-        string? directory = Path.GetDirectoryName(fullPath);
-        if (directory is not null && !Directory.Exists(directory))
+        return Enrich(new { Path = result.Output }, result);
+    }
+
+    private object Enrich(object response, CliResult cliResult)
+    {
+        if (!config.Verbose)
         {
-            Directory.CreateDirectory(directory);
+            return response;
         }
-
-        logger.LogInformation("Appending to daily note for {Date} in vault '{Vault}'", noteDate.ToString("yyyy-MM-dd"), vaultConfig.Name);
-
-        bool existed = File.Exists(fullPath);
-        string textToAppend = existed ? $"\n{content}" : content;
-        await File.AppendAllTextAsync(fullPath, textToAppend, cancellationToken).ConfigureAwait(false);
 
         return new
         {
-            Path = Path.GetRelativePath(vaultConfig.Path, fullPath),
-            Vault = vaultConfig.Name,
-            Date = noteDate.ToString("yyyy-MM-dd"),
-            Created = !existed,
-            Appended = true
+            Result = response,
+            Diagnostics = new
+            {
+                cliResult.ExecutedCommand,
+                cliResult.ExecutedArguments,
+                cliResult.ExitCode
+            }
         };
     }
 }

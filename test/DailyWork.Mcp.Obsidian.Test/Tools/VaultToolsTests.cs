@@ -10,99 +10,96 @@ namespace DailyWork.Mcp.Obsidian.Test.Tools;
 
 public class VaultToolsTests
 {
-    private readonly ICliRunner cliRunner = Substitute.For<ICliRunner>();
+    private readonly IObsidianCliService obsidianCli = Substitute.For<IObsidianCliService>();
 
     [Fact]
-    public async Task ListVaults_NoVaultsConfigured_ReturnsError()
+    public async Task GetVaultInfo_Success_ReturnsInfo()
     {
-        VaultTools sut = CreateSut([]);
+        obsidianCli
+            .GetVaultInfoAsync(Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "Vault: TestVault, Notes: 10", string.Empty));
 
-        dynamic result = await sut.ListVaults(TestContext.Current.CancellationToken);
+        VaultTools sut = CreateSut();
 
-        Assert.Equal("No vaults configured", (string)result.Error);
+        dynamic result = await sut.GetVaultInfo(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Vault: TestVault, Notes: 10", (string)result.Info);
     }
 
     [Fact]
-    public async Task ListVaults_WithVaults_ReturnsVaultInfoWithNoteCounts()
+    public async Task GetVaultInfo_CliFailure_ReturnsError()
     {
-        VaultConfig[] vaults =
-        [
-            new() { Name = "TestVault", Path = "/fake/vault" }
-        ];
+        obsidianCli
+            .GetVaultInfoAsync(Arg.Any<CancellationToken>())
+            .Returns(new CliResult(1, string.Empty, "Vault not found"));
 
-        cliRunner
-            .RunAsync("bash", Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(0, "5\n", string.Empty));
+        VaultTools sut = CreateSut();
 
-        VaultTools sut = CreateSut(vaults);
+        dynamic result = await sut.GetVaultInfo(TestContext.Current.CancellationToken);
 
-        dynamic result = await sut.ListVaults(TestContext.Current.CancellationToken);
-
-        var vaultList = (List<object>)result.Vaults;
-        Assert.Single(vaultList);
-
-        dynamic first = vaultList[0];
-        Assert.Equal("TestVault", (string)first.Name);
-        Assert.Equal(5, (int)first.NoteCount);
+        Assert.Equal("Vault not found", (string)result.Error);
     }
 
     [Fact]
-    public async Task GetVaultInfo_UnknownVault_ReturnsError()
+    public async Task GetOutline_Success_ReturnsOutline()
     {
-        VaultConfig[] vaults =
-        [
-            new() { Name = "TestVault", Path = "/fake/vault" }
-        ];
+        obsidianCli
+            .GetOutlineAsync("note.md", Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "# Heading 1\n## Heading 2", string.Empty));
 
-        VaultTools sut = CreateSut(vaults);
+        VaultTools sut = CreateSut();
 
-        dynamic result = await sut.GetVaultInfo(vault: "NonExistent", cancellationToken: TestContext.Current.CancellationToken);
+        dynamic result = await sut.GetOutline("note.md", TestContext.Current.CancellationToken);
 
-        Assert.Contains("not found", (string)result.Error);
+        Assert.Equal("note.md", (string)result.Path);
+        Assert.Contains("Heading 1", (string)result.Outline);
     }
 
     [Fact]
-    public async Task GetVaultInfo_ValidVault_ReturnsStats()
+    public async Task ListBookmarks_Success_ReturnsBookmarks()
     {
-        VaultConfig[] vaults =
-        [
-            new() { Name = "TestVault", Path = "/fake/vault" }
-        ];
+        obsidianCli
+            .ListBookmarksAsync(Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "[{\"path\":\"note.md\"}]", string.Empty));
 
-        // CountNotesAsync call (find ... *.md ... | wc -l)
-        cliRunner
-            .RunAsync("bash", Arg.Is<string>(a => a.Contains("*.md")), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(0, "10\n", string.Empty));
+        VaultTools sut = CreateSut();
 
-        // Folder count call (find ... -type d | wc -l)
-        cliRunner
-            .RunAsync("bash", Arg.Is<string>(a => a.Contains("-type d")), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(0, "3\n", string.Empty));
+        dynamic result = await sut.ListBookmarks(TestContext.Current.CancellationToken);
 
-        // du -sh call
-        cliRunner
-            .RunAsync("du", Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new CliResult(0, "1.2M\t/fake/vault", string.Empty));
-
-        VaultTools sut = CreateSut(vaults);
-
-        dynamic result = await sut.GetVaultInfo(vault: "TestVault", cancellationToken: TestContext.Current.CancellationToken);
-
-        Assert.Equal("TestVault", (string)result.Name);
-        Assert.Equal(10, (int)result.NoteCount);
-        Assert.Equal(3, (int)result.FolderCount);
-        Assert.Equal("1.2M", (string)result.TotalSize);
+        Assert.Contains("note.md", (string)result.Bookmarks);
     }
 
-    private VaultTools CreateSut(VaultConfig[] vaults)
+    [Fact]
+    public async Task AddBookmark_Success_ReturnsBookmarked()
     {
-        IOptions<ObsidianOptions> options = Options.Create(new ObsidianOptions
-        {
-            Vaults = [.. vaults]
-        });
+        obsidianCli
+            .AddBookmarkAsync("note.md", null, Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "Added", string.Empty));
 
-        var vaultService = new VaultService(options, NullLogger<VaultService>.Instance);
+        VaultTools sut = CreateSut();
 
-        return new VaultTools(cliRunner, vaultService, options, NullLogger<VaultTools>.Instance);
+        dynamic result = await sut.AddBookmark("note.md", cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True((bool)result.Bookmarked);
+    }
+
+    [Fact]
+    public async Task ListRecents_Success_ReturnsRecentFiles()
+    {
+        obsidianCli
+            .ListRecentsAsync(Arg.Any<CancellationToken>())
+            .Returns(new CliResult(0, "note1.md\nnote2.md\nnote3.md", string.Empty));
+
+        VaultTools sut = CreateSut();
+
+        dynamic result = await sut.ListRecents(TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, (int)result.Count);
+    }
+
+    private VaultTools CreateSut()
+    {
+        IOptions<ObsidianOptions> options = Options.Create(new ObsidianOptions());
+        return new VaultTools(obsidianCli, options, NullLogger<VaultTools>.Instance);
     }
 }

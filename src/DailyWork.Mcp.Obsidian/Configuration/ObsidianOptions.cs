@@ -4,14 +4,10 @@ public class ObsidianOptions
 {
     public const string SectionName = "Obsidian";
 
-    public List<VaultConfig> Vaults { get; set; } = [];
+    public string VaultName { get; set; } = "sample-vault";
+    public string CliCommand { get; set; } = "obsidian";
     public string DailyNoteFormat { get; set; } = "yyyy-MM-dd";
     public string DailyNoteFolder { get; set; } = "Daily";
     public string TemplateFolder { get; set; } = "Templates";
-}
-
-public class VaultConfig
-{
-    public required string Name { get; set; }
-    public required string Path { get; set; }
+    public bool Verbose { get; set; }
 }
