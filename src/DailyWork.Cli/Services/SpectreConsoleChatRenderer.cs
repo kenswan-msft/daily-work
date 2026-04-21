@@ -8,7 +8,7 @@ namespace DailyWork.Cli;
 
 public class SpectreConsoleChatRenderer : IChatRenderer
 {
-    public void RenderHeader()
+    public void RenderHeader(string? modelName = null)
     {
         AnsiConsole.WriteLine();
 
@@ -16,6 +16,14 @@ public class SpectreConsoleChatRenderer : IChatRenderer
             new FigletText("DailyWork")
                 .Centered()
                 .Color(Color.Cyan1));
+
+        if (!string.IsNullOrWhiteSpace(modelName))
+        {
+            AnsiConsole.Write(
+                new Markup($"[dim]Model: {Markup.Escape(modelName)}[/]")
+                    .Centered());
+            AnsiConsole.WriteLine();
+        }
 
         AnsiConsole.Write(
             new Rule("[dim]Chat[/]")

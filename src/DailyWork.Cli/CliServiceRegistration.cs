@@ -47,6 +47,7 @@ internal static class CliServiceRegistration
         services.AddSingleton<IChatRenderer, SpectreConsoleChatRenderer>();
         services.AddSingleton<IChatInputReader, ConsoleChatInputReader>();
         services.AddSingleton<IBrowserLauncher, ProcessBrowserLauncher>();
+        services.AddSingleton<ApiSettingsClient>();
         services.AddSingleton<ApiHealthChecker>();
         services.AddSingleton<AppHostLauncher>();
         services.AddTransient<IChatAgent>(serviceProvider =>

@@ -4,7 +4,7 @@ namespace DailyWork.Cli;
 
 public interface IChatRenderer
 {
-    void RenderHeader();
+    void RenderHeader(string? modelName = null);
     void RenderPrompt();
     void RenderEmptyInputWarning();
     void RenderGoodbye();

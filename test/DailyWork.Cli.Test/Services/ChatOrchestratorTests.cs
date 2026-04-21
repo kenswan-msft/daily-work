@@ -16,6 +16,7 @@ public class ChatOrchestratorTests
     private readonly IBrowserLauncher browserLauncher = Substitute.For<IBrowserLauncher>();
     private readonly MockHttpMessageHandler httpMessageHandler = new();
     private readonly ConversationHistoryClient historyClient;
+    private readonly ApiSettingsClient settingsClient;
     private readonly DailyWorkApiOptions options;
     private readonly ChatOrchestrator sut;
 
@@ -34,17 +35,24 @@ public class ChatOrchestratorTests
             {
                 Content = JsonContent.Create(Array.Empty<ConversationSummary>()),
             });
+        httpMessageHandler.SetResponse(
+            "/api/settings",
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new { modelDeployment = "test-model" }),
+            });
         httpClientFactory.CreateClient("DailyWorkApi").Returns(
             new HttpClient(httpMessageHandler)
             {
                 BaseAddress = new Uri("https://localhost"),
             });
         historyClient = new ConversationHistoryClient(httpClientFactory);
+        settingsClient = new ApiSettingsClient(httpClientFactory);
 
         options = new DailyWorkApiOptions();
         IOptions<DailyWorkApiOptions> wrappedOptions = Options.Create(options);
 
-        sut = new ChatOrchestrator(renderer, inputReader, agent, historyClient, browserLauncher, wrappedOptions);
+        sut = new ChatOrchestrator(renderer, inputReader, agent, historyClient, settingsClient, browserLauncher, wrappedOptions);
     }
 
     [Fact]
@@ -305,7 +313,7 @@ public class ChatOrchestratorTests
 
         await sut.RunAsync(CancellationToken.None);
 
-        renderer.Received(1).RenderHeader();
+        renderer.Received(1).RenderHeader("test-model");
     }
 
     [Fact]

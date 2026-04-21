@@ -9,12 +9,16 @@ public class ChatOrchestrator(
     IChatInputReader inputReader,
     IChatAgent agent,
     ConversationHistoryClient historyClient,
+    ApiSettingsClient settingsClient,
     IBrowserLauncher browserLauncher,
     IOptions<DailyWorkApiOptions> apiOptions)
 {
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        renderer.RenderHeader();
+        string? modelName = await settingsClient.GetModelDeploymentAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        renderer.RenderHeader(modelName);
         await agent.InitializeSessionAsync(cancellationToken).ConfigureAwait(false);
 
         List<ChatMessage> messages = [];

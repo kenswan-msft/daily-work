@@ -6,6 +6,7 @@ using DailyWork.Agents.Factories;
 using DailyWork.Api.Dashboard;
 using Microsoft.Agents.AI.Hosting.AGUI.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -71,6 +72,9 @@ app.MapKnowledgeDashboardEndpoints();
 app.MapProjectsDashboardEndpoints();
 
 app.MapAGUI("/api/chat", app.Services.GetRequiredKeyedService<RequestScopedAGUIAgent>(AgentKeys.Chat));
+
+app.MapGet("/api/settings", (IOptions<ChatClientOptions> chatClientOptions) =>
+    Results.Ok(new { modelDeployment = chatClientOptions.Value.Deployment }));
 
 app.MapGet("/api/conversations", async (ConversationService conversationService, CancellationToken cancellationToken) =>
 {
